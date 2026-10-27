@@ -1,0 +1,45 @@
+{
+  "source_archive": "AJAZZ_AK820_MAX_driver_V1.0.zip",
+  "vendor_code_executed": false,
+  "extraction": "zipfile -> 7-Zip RAR -> innoextract 5.3.3",
+  "application_title": "AJAZZ AK820MAX",
+  "family": "BYCOMBO4 / BY Tech",
+  "wired_vid": "258A",
+  "wired_pid": "010C",
+  "wireless_vid": "3554",
+  "wireless_pid": "FA09",
+  "config_fw_field": "24 (not interpreted as a physical firmware version)",
+  "wired_psd": "3,0,0,0,1,42",
+  "trimode_psd": "3,0,0,0,1,5e",
+  "crc_field": 1,
+  "driver_imports": [
+    "HidD_SetFeature",
+    "HidD_GetFeature",
+    "HidP_GetCaps"
+  ],
+  "gpwb2401_mapping_proven": false,
+  "files": [
+    {
+      "path": "Cfg.ini",
+      "bytes": 1370,
+      "sha256": "6bbbcb899acf46b1d64ed5b1e9afd6f76b44f88e0c4164d36b1186eb045b0641"
+    },
+    {
+      "path": "Dev/kb/Wired/KB.ini",
+      "bytes": 5946,
+      "sha256": "b0823afa503d522e5cd4a1acee7d4648ec3a11b9d373d32570fd32a78131eef1"
+    },
+    {
+      "path": "Dev/kb/Thr/KB.ini",
+      "bytes": 5944,
+      "sha256": "e8ae2220482247ed1348deb33832cbcfe67628595befa47b791a44ad381690dc"
+    },
+    {
+      "path": "OemDrv.exe",
+      "bytes": 2628608,
+      "sha256": "fc7109b0467602a7624b2a83402bae12255ad5ad2e9483a2c4750c584231c06c"
+    }
+  ],
+  "archive_sha256": "a264ecb265b3c1eb3d60b6138e89b785f39f83c3b668f564be22107e30b0d6cf",
+  "installer_sha256": "b78d89836160f27c8340a112aecaa51cdbf70ec484a4941abcaf1ec97baa2704"
+}

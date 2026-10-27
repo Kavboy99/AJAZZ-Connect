@@ -1,0 +1,13 @@
+{
+  "descriptor_source": "https://github.com/microsoft/ArduinoHidForWindows/blob/main/src/LampArrayReportDescriptor.h",
+  "descriptor_git_blob": "d01cabcac2f1070c27c6b2cb2dccc828ee976585",
+  "descriptor_bytes": 292,
+  "sdk_source": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Documentation/OpenRGBSDK.md",
+  "sdk_fixture": "Synthetic keyboard, independent Python encoding from published tables, no hardware claims",
+  "sdk_active_at": 111,
+  "sdk_colors_at": 295,
+  "sdk_modes_at": 115,
+  "sdk_direct_bytes": 59,
+  "sdk_effect_bytes": 66,
+  "sha256": "ed3ed226572fa2e8127a27a3b1d1bc75edc85c6e1d494309d459ed62d0c6d2d5"
+}

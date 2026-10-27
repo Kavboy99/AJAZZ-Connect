@@ -1,0 +1,17 @@
+/target/
+/dist/
+/dist-connect/
+/source-dist/
+/verification/
+/research/original/
+*.log
+
+# Local caches and vendor binaries
+__pycache__/
+*.pyc
+/tests/fixtures/*.exe
+
+# Research copies without a bundled redistribution license
+/research/sources/d991d__ajazz-control/
+/research/sources/gusleig__ajazz-ak820-pro-mac/
+/research/sources/not-nullptr__openajazz/

@@ -1,0 +1,17 @@
+{
+  "target_marking": "GPWB2401",
+  "application": "AJAZZ Connect",
+  "version": "0.2.0",
+  "stage": "multi_protocol_lighting_and_firmware_research",
+  "lighting_backends": ["stock-sonix-aa55", "sonix-feature-experimental", "hid-lamparray", "openrgb-sdk-1-to-3"],
+  "settings_writes": "explicit Apply button only; AA55 and Feature may persist lighting settings",
+  "target_hardware_profile_verified": false,
+  "firmware_image_for_target_verified": false,
+  "flash_implementation_exposed": false,
+  "boot_or_erase_commands_exposed": false,
+  "hardware_tested_on_friend_keyboard": false,
+  "new_backends_physically_tested_locally": false,
+  "third_party_hardware_evidence": "OpenKey author reports AK820 MAX PLUS 0C45:8009 lighting success on 2026-10-11; this is not a local test of this implementation",
+  "reason": "The friend's keyboard is not available. GPWB2401 is not mapped to USB identity and a specific firmware image.",
+  "needed_for_target_flashing": "USB identity, controller/board mapping, bootloader and exact compatible firmware image. Archive names alone do not establish switch type or revision."
+}

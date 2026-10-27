@@ -1,0 +1,349 @@
+{
+  "purpose": "Protocol facts and provenance. Third-party hardware claims are not our local hardware tests. Local file hashes identify preserved copies; URLs name upstream references.",
+  "files": [
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "docs/protocol/sonix-aa55.md",
+      "local_path": "research/sources/BakulBd__OpenKey/docs/protocol/sonix-aa55.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "ec76b78adeb0170999dd5e24dc43f0f16053497ab90fadd4cc9adf8b5c0491cd",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/docs/protocol/sonix-aa55.md"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "docs/protocol/sonix-feature.md",
+      "local_path": "research/sources/BakulBd__OpenKey/docs/protocol/sonix-feature.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "a65cc9a6156906cd8480cf9adc321f10672f4141ce3c907efc6d9afa19532def",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/docs/protocol/sonix-feature.md"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "docs/PROTOCOL_SOURCES.md",
+      "local_path": "research/sources/BakulBd__OpenKey/docs/PROTOCOL_SOURCES.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "fda3fad015fcb38e14e3227ee96f46442487c43ad8666479865f4d548d0eb183",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/docs/PROTOCOL_SOURCES.md"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "docs/reverse-engineering/official-driver-analysis.md",
+      "local_path": "research/sources/BakulBd__OpenKey/docs/reverse-engineering/official-driver-analysis.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "48c02e74d944017662921bb986c002e8fd336416876a80a58329ed2f378bcbad",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/docs/reverse-engineering/official-driver-analysis.md"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "fixtures/diagnostics/ak820-max-plus-descriptors.json",
+      "local_path": "research/sources/BakulBd__OpenKey/fixtures/diagnostics/ak820-max-plus-descriptors.json",
+      "retrieved_date": "2026-10-27",
+      "sha256": "1e7c89f839fae8b55bbd91a4a324181bc69d360c6939017bfc22b68615ccc924",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/fixtures/diagnostics/ak820-max-plus-descriptors.json"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "fixtures/rgb/sonix-feature-lighting.json",
+      "local_path": "research/sources/BakulBd__OpenKey/fixtures/rgb/sonix-feature-lighting.json",
+      "retrieved_date": "2026-10-27",
+      "sha256": "f539530cda4e9e22d1a8bd3bd26a4f5a3965b845312a65201fd2e6e872b6f534",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/fixtures/rgb/sonix-feature-lighting.json"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "fixtures/verification/ak820-max-plus-owner-test-hw.json",
+      "local_path": "research/sources/BakulBd__OpenKey/fixtures/verification/ak820-max-plus-owner-test-hw.json",
+      "retrieved_date": "2026-10-27",
+      "sha256": "7d9ad82957c6a452dd91401e42a6046634ec16b8536de407604c25325ccd0e90",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/fixtures/verification/ak820-max-plus-owner-test-hw.json"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "LICENSE",
+      "local_path": "research/sources/BakulBd__OpenKey/LICENSE",
+      "retrieved_date": "2026-10-27",
+      "sha256": "1eae0c99e6d1c4bec3eb056d4003323e784a0feca568c83d72cf848f370b4d3f",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/LICENSE"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/devices/src/protocol-hints.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/devices/src/protocol-hints.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "89183876571053eb154766c9806ed06ce66f851ad86d33ae459d6543c99d9935",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/devices/src/protocol-hints.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/lamparray/codec.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/lamparray/codec.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "2e7eb2c5f7a0e4baf9143dd3d692dca870b7bb0691f189e93f5d6103cc2df1fc",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/lamparray/codec.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/lamparray/driver.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/lamparray/driver.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "dc8a408dbaed81ecf599925a12f0863522c41f2e6702f7333c444f0c59f0c99b",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/lamparray/driver.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/lamparray/protocol.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/lamparray/protocol.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "c181bc9034508d51a680839773f8f520ee3f14b99f3194934c5fb2c35532c726",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/lamparray/protocol.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/royuan/protocol.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/royuan/protocol.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "c6021d1f2527b21bcf1b605caba7d0e65b5f5e90ae2a0dea23bd373021ab491a",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/royuan/protocol.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/capabilities.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/capabilities.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "1c3601045c8609aa149ba6e46b03daae1341404b13ca650174122ea57955591c",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/capabilities.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/codecs/lighting.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/codecs/lighting.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "f215f73d00a223d38a84033c790e3733892a74088e3e14cb3878cadc0030a637",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/codecs/lighting.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/constants.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/constants.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "8881bb3f3668ee28cf4208af010478729d46c21852876db8564495329273518b",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/constants.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/driver.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/driver.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "e7d5a47fa77b354a75fe4e9d285f594c573d10ca495178a6e3f9ddaa2715a2b3",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/driver.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/frame.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/frame.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "5e0876745f541810a494399493abdec8dcf0a30f433317e11e3571816fea0a61",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/frame.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/ledger.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/ledger.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "1306c3927314375d86b0f84332ca0b70a2d248aaea9ea748cd0fad322abbb8de",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/ledger.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/protocol.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/protocol.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "10f44403d95dba98ce06eb5a8a23c50cc915413afe833bb6bef2fd2dbd325a6f",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/protocol.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/session.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/session.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "e6f75bc1aa92553904b7d437b08c52562fe74a609382d87036e3d563f7b8f15d",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/session.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/families/sonix-feature/variants.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/families/sonix-feature/variants.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "806a1efcdd01f18ce39f944f8a6e58f1d42e5f917e87b85983d0ee0541353286",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/families/sonix-feature/variants.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "packages/protocols/src/registry.ts",
+      "local_path": "research/sources/BakulBd__OpenKey/packages/protocols/src/registry.ts",
+      "retrieved_date": "2026-10-27",
+      "sha256": "68eb4533e4a7001a59ea5d6584ae7653e54a5779d2321c905185c34e11920b2c",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/packages/protocols/src/registry.ts"
+    },
+    {
+      "repository": "BakulBd/OpenKey",
+      "path": "vendor/README.md",
+      "local_path": "research/sources/BakulBd__OpenKey/vendor/README.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "086a68955dab74b2b5a100ce631cf95ce2c5061f519d4c735a3285990e72a605",
+      "url": "https://github.com/BakulBd/OpenKey/blob/main/vendor/README.md"
+    },
+    {
+      "repository": "CalcProgrammer1/OpenRGB",
+      "path": "Controllers/HIDLampArrayController/HIDLampArrayController.cpp",
+      "local_path": "research/sources/CalcProgrammer1__OpenRGB/Controllers/HIDLampArrayController/HIDLampArrayController.cpp",
+      "retrieved_date": "2026-10-27",
+      "sha256": "ce06f43583b0d7a468e82d48cd1cbd305fdfaa4ba92511850831319dd7ecabe8",
+      "url": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/HIDLampArrayController/HIDLampArrayController.cpp"
+    },
+    {
+      "repository": "CalcProgrammer1/OpenRGB",
+      "path": "Controllers/HIDLampArrayController/HIDLampArrayController.h",
+      "local_path": "research/sources/CalcProgrammer1__OpenRGB/Controllers/HIDLampArrayController/HIDLampArrayController.h",
+      "retrieved_date": "2026-10-27",
+      "sha256": "262ed894de182ba42e3ccdc86c739f1f79f11e84c05fe06a7f29620dae44368d",
+      "url": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/HIDLampArrayController/HIDLampArrayController.h"
+    },
+    {
+      "repository": "CalcProgrammer1/OpenRGB",
+      "path": "Controllers/HIDLampArrayController/HIDLampArrayControllerDetect.cpp",
+      "local_path": "research/sources/CalcProgrammer1__OpenRGB/Controllers/HIDLampArrayController/HIDLampArrayControllerDetect.cpp",
+      "retrieved_date": "2026-10-27",
+      "sha256": "1b336789a1d1c1bdea4e04e4f4888b5cd6c72070cdea82904f93cf4d10342c0e",
+      "url": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/HIDLampArrayController/HIDLampArrayControllerDetect.cpp"
+    },
+    {
+      "repository": "CalcProgrammer1/OpenRGB",
+      "path": "Documentation/OpenRGBSDK.md",
+      "local_path": "research/sources/CalcProgrammer1__OpenRGB/Documentation/OpenRGBSDK.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "70e199b713f75c98912e770a087f4f3e97ba27a03b7642c04380ee9f28e7b4c1",
+      "url": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Documentation/OpenRGBSDK.md"
+    },
+    {
+      "repository": "CalcProgrammer1/OpenRGB",
+      "path": "LICENSE",
+      "local_path": "research/sources/CalcProgrammer1__OpenRGB/LICENSE",
+      "retrieved_date": "2026-10-27",
+      "sha256": "e8a9431e9e083cc4b56a63c84bab6c961dc1296303ac2d5bf6e44233833dab5e",
+      "url": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/LICENSE"
+    },
+    {
+      "repository": "CalcProgrammer1/OpenRGB",
+      "path": "NetworkProtocol.h",
+      "local_path": "research/sources/CalcProgrammer1__OpenRGB/NetworkProtocol.h",
+      "retrieved_date": "2026-10-27",
+      "sha256": "17c88b40801b1ef568407bfcb48986e5cee446b7fec6efc03bf7304b3e9ce22e",
+      "url": "https://github.com/CalcProgrammer1/OpenRGB/blob/master/NetworkProtocol.h"
+    },
+    {
+      "repository": "gusleig/ajazz-ak820-pro-mac",
+      "path": "ak820/control.py",
+      "local_path": "research/sources/gusleig__ajazz-ak820-pro-mac/ak820/control.py",
+      "retrieved_date": "2026-10-27",
+      "sha256": "3aa52b7024128d1caa6852d7e7107bf25bda616e15411cfb2920b6c3e0b5b95e",
+      "url": "https://github.com/gusleig/ajazz-ak820-pro-mac/blob/main/ak820/control.py"
+    },
+    {
+      "repository": "gusleig/ajazz-ak820-pro-mac",
+      "path": "ak820/protocol.py",
+      "local_path": "research/sources/gusleig__ajazz-ak820-pro-mac/ak820/protocol.py",
+      "retrieved_date": "2026-10-27",
+      "sha256": "dfe786a13878964d9118d50b737ac8173790eef989dbb22918450b3263b74efd",
+      "url": "https://github.com/gusleig/ajazz-ak820-pro-mac/blob/main/ak820/protocol.py"
+    },
+    {
+      "repository": "gusleig/ajazz-ak820-pro-mac",
+      "path": "ak820/transport.py",
+      "local_path": "research/sources/gusleig__ajazz-ak820-pro-mac/ak820/transport.py",
+      "retrieved_date": "2026-10-27",
+      "sha256": "3f882000e9e6d367783430a7d03a6f2aed14f2aa1e1c85f4af908edf901f9a45",
+      "url": "https://github.com/gusleig/ajazz-ak820-pro-mac/blob/main/ak820/transport.py"
+    },
+    {
+      "repository": "gusleig/ajazz-ak820-pro-mac",
+      "path": "docs/protocol.md",
+      "local_path": "research/sources/gusleig__ajazz-ak820-pro-mac/docs/protocol.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "38e83e2972944a85d473f1e95d108e87d6de71da278c82a681a247e205b11c94",
+      "url": "https://github.com/gusleig/ajazz-ak820-pro-mac/blob/main/docs/protocol.md"
+    },
+    {
+      "repository": "not-nullptr/openajazz",
+      "path": "crates/jazztastic/src/keyboards/ak820/mod.rs",
+      "local_path": "research/sources/not-nullptr__openajazz/crates/jazztastic/src/keyboards/ak820/mod.rs",
+      "retrieved_date": "2026-10-27",
+      "sha256": "83badad97b36b78a2697c07be8351eaafd166fb21288b9882ddd8e953144f351",
+      "url": "https://github.com/not-nullptr/openajazz/blob/cli/crates/jazztastic/src/keyboards/ak820/mod.rs"
+    },
+    {
+      "repository": "not-nullptr/openajazz",
+      "path": "crates/jazztastic/src/keyboards/keyboard.rs",
+      "local_path": "research/sources/not-nullptr__openajazz/crates/jazztastic/src/keyboards/keyboard.rs",
+      "retrieved_date": "2026-10-27",
+      "sha256": "61fcb9025a51548abea9f9a15b0c5fcec0796adbdef21991239fbe9b6f26cf66",
+      "url": "https://github.com/not-nullptr/openajazz/blob/cli/crates/jazztastic/src/keyboards/keyboard.rs"
+    },
+    {
+      "repository": "not-nullptr/openajazz",
+      "path": "crates/jazztastic/src/reports/rgb/mod.rs",
+      "local_path": "research/sources/not-nullptr__openajazz/crates/jazztastic/src/reports/rgb/mod.rs",
+      "retrieved_date": "2026-10-27",
+      "sha256": "0c67f86fc1030bf5029ddf5697db3ad3cba04d07e33cc8869995757ea69b245f",
+      "url": "https://github.com/not-nullptr/openajazz/blob/cli/crates/jazztastic/src/reports/rgb/mod.rs"
+    },
+    {
+      "repository": "not-nullptr/openajazz",
+      "path": "crates/openajazz/src/collection.rs",
+      "local_path": "research/sources/not-nullptr__openajazz/crates/openajazz/src/collection.rs",
+      "retrieved_date": "2026-10-27",
+      "sha256": "e50670ea7a20cea6c7a4931c13c23a9ac08807d499c4471a30506027f6803491",
+      "url": "https://github.com/not-nullptr/openajazz/blob/cli/crates/openajazz/src/collection.rs"
+    },
+    {
+      "repository": "d991d/ajazz-control",
+      "path": "docs/PROTOCOL.md",
+      "local_path": "research/sources/d991d__ajazz-control/docs/PROTOCOL.md",
+      "retrieved_date": "2026-10-27",
+      "sha256": "2f22cc26abc0facafdf5548e2df3594a2e05f6e3266b934b55d968bbdfcbfcab",
+      "url": "https://github.com/d991d/ajazz-control/blob/main/docs/PROTOCOL.md"
+    },
+    {
+      "repository": "microsoft/ArduinoHidForWindows",
+      "path": "LICENSE",
+      "local_path": "research/sources/microsoft__ArduinoHidForWindows/LICENSE",
+      "retrieved_date": "2026-10-27",
+      "sha256": "c075a7fdbcff0157cf50a2c2b54c7190e36e0215ec5b9145988fdd1f9efb869b",
+      "url": "https://github.com/microsoft/ArduinoHidForWindows/blob/main/LICENSE"
+    },
+    {
+      "repository": "microsoft/ArduinoHidForWindows",
+      "path": "src/LampArrayReportDescriptor.h",
+      "local_path": "research/sources/microsoft__ArduinoHidForWindows/src/LampArrayReportDescriptor.h",
+      "retrieved_date": "2026-10-27",
+      "sha256": "8d6b01f60328c7f576f17665f87597c20b1b394963f0c0844c985a40d7125075",
+      "url": "https://github.com/microsoft/ArduinoHidForWindows/blob/main/src/LampArrayReportDescriptor.h"
+    },
+    {
+      "repository": "microsoft/ArduinoHidForWindows",
+      "path": "src/LampArrayReports.h",
+      "local_path": "research/sources/microsoft__ArduinoHidForWindows/src/LampArrayReports.h",
+      "retrieved_date": "2026-10-27",
+      "sha256": "7622606eb1cabaa695c024e3d0c482af68e72030cdbd9f27448adefefa906ebf",
+      "url": "https://github.com/microsoft/ArduinoHidForWindows/blob/main/src/LampArrayReports.h"
+    },
+    {
+      "repository": "microsoft/ArduinoHidForWindows",
+      "path": "src/Microsoft_HidLampArray.cpp",
+      "local_path": "research/sources/microsoft__ArduinoHidForWindows/src/Microsoft_HidLampArray.cpp",
+      "retrieved_date": "2026-10-27",
+      "sha256": "127f820ddc21c5151bbe5ff49fe32da77dccf7831dad288332201cfbf0b26a3b",
+      "url": "https://github.com/microsoft/ArduinoHidForWindows/blob/main/src/Microsoft_HidLampArray.cpp"
+    }
+  ]
+}
