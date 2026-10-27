@@ -11,6 +11,10 @@ __pycache__/
 *.pyc
 /tests/fixtures/*.exe
 
+# Vendor packages and unpacked vendor binaries (static analysis only, never committed)
+/research/downloads/
+/research/drv-audit/
+
 # Research copies without a bundled redistribution license
 /research/sources/d991d__ajazz-control/
 /research/sources/gusleig__ajazz-ak820-pro-mac/
