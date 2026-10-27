@@ -1,7 +1,7 @@
 $ErrorActionPreference='Stop'
 $destination=Join-Path $PSScriptRoot 'source-dist'
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
-$files=@('Cargo.toml','Cargo.lock','README.md','README-PORTABLE.md','LICENSE','STATUS.json','THIRD-PARTY.md','THIRD-PARTY-LICENSES.txt','build.ps1','package.ps1','package-source.ps1','.gitignore')
+$files=@('Cargo.toml','Cargo.lock','AGENTS.md','CLAUDE.md','README.md','README.ru.md','README-PORTABLE.md','LICENSE','STATUS.json','THIRD-PARTY.md','THIRD-PARTY-LICENSES.txt','build.ps1','package.ps1','package-source.ps1','.gitignore')
 foreach($directory in @('src','tests','docs','tools')) {
     $files+=Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $directory) -File -Recurse |
         Where-Object {$_.Extension -notin @('.exe','.pyc')} |

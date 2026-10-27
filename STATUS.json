@@ -1,17 +1,37 @@
 {
-  "target_marking": "GPWB2401",
   "application": "AJAZZ Connect",
   "version": "0.2.0",
   "stage": "multi_protocol_lighting_and_firmware_research",
+  "target_marking": "GPWB2401",
+  "target_description": "Mechanical AK820 MAX of the repository owner; BY Tech platform",
+  "keyboards": {
+    "GPWB2401": {
+      "owner": "repository owner",
+      "switch_type": "mechanical",
+      "usb_wired": "258A:010C",
+      "usb_wireless_receiver": "3554:FA09",
+      "usb_identity_verified": true,
+      "verified_on": "2026-10-28",
+      "native_driver": false,
+      "lighting_control": false
+    },
+    "ULTRARSW": {
+      "owner": "co-author",
+      "switch_type": "magnetic",
+      "usb_wired": "0C45:80A0 (from project research, not probed on this PC)",
+      "usb_identity_verified": false,
+      "native_driver": "stock-sonix-aa55",
+      "lighting_control": true
+    }
+  },
   "lighting_backends": ["stock-sonix-aa55", "sonix-feature-experimental", "hid-lamparray", "openrgb-sdk-1-to-3"],
   "settings_writes": "explicit Apply button only; AA55 and Feature may persist lighting settings",
-  "target_hardware_profile_verified": false,
   "firmware_image_for_target_verified": false,
   "flash_implementation_exposed": false,
   "boot_or_erase_commands_exposed": false,
-  "hardware_tested_on_friend_keyboard": false,
   "new_backends_physically_tested_locally": false,
   "third_party_hardware_evidence": "OpenKey author reports AK820 MAX PLUS 0C45:8009 lighting success on 2026-10-11; this is not a local test of this implementation",
-  "reason": "The friend's keyboard is not available. GPWB2401 is not mapped to USB identity and a specific firmware image.",
-  "needed_for_target_flashing": "USB identity, controller/board mapping, bootloader and exact compatible firmware image. Archive names alone do not establish switch type or revision."
+  "reason": "No adapter matches GPWB2401 (BY Tech 258A:010C). The BY Tech lighting format for this model is not established; the firmware image and controller are unknown.",
+  "needed_for_target_flashing": "Controller/board mapping, bootloader, exact compatible firmware image and the owner's written consent. Archive names alone do not establish switch type or revision.",
+  "documentation": "docs/DEVICES.md"
 }
