@@ -16,8 +16,10 @@ it is silent, the WinUI 3 guideline applies.
 1. **Simplicity and minimalism.** One screen, one task. No decorative elements.
 2. **Readability first.** Text is high-contrast and larger than "pretty"; density is moderate.
 3. **Structure on a grid.** All sizes and spacing are multiples of 4 px; elements align to columns.
-4. **Dark theme is the primary theme.** A light theme may come later, on the same tokens.
-5. **No effects for effect's sake.** No gradients, no glow shadows, no emoji.
+4. **Dark theme is the primary theme.** A light theme exists on the same tokens (section 3.1); the user
+   switches it with the button at the bottom of the navigation pane, and the choice is saved.
+5. **No effects for effect's sake.** No gradients, no glow shadows, no emoji. The only exception is
+   the device stage of a device tile (section 8.1): a device is shown as an object in light.
 6. **Color carries meaning.** Accent means action and selection; status always comes with an icon and text.
 7. **Live response.** Every action gets visible feedback; states and transitions change smoothly and
    according to the laws of physics (section 9).
@@ -29,7 +31,7 @@ it is silent, the WinUI 3 guideline applies.
 | Not allowed | Use instead |
 | --- | --- |
 | Emoji and picture symbols in strings (checkmarks, warnings, Unicode arrows) | Icons from the Hugeicons set |
-| Gradients (backgrounds, buttons, accent, bars) | A flat fill from a token |
+| Gradients (backgrounds, buttons, accent, bars) | A flat fill from a token. Only the device stage (8.1) has a radial glow and a contact shadow |
 | Pure `#FFFFFF` and `#000000` in surfaces, strokes, accents | Close shades from the palette. Allowed for **text**, but the `text.*` tokens are used by default |
 | 255/0 channels in saturated interface colors (`#FF0000`, `#00FF00`, `#0000FF`, `#FFFF00`, ...) | Muted shades (section 3) |
 | Color literals in widget code | Only the tokens in `ui/theme/tokens.rs` |
@@ -90,6 +92,8 @@ pure `#FFFFFF`/`#000000` never appear.
 | `status.caution` | `#E0B84A` | Warning, experimental |
 | `status.critical` | `#E8808A` | Error, irreversible action |
 | `status.info` | = `accent` | Information |
+| `device.glow` | `#4DB2E8` | Light behind a hovered device model and its rim light (8.1); never text |
+| `device.shadow` | `#0E0E0E` | Contact shadow under a device model, always drawn translucent (8.1) |
 
 A status always consists of **icon + text + color**: color alone conveys nothing.
 
@@ -112,7 +116,35 @@ Calculated per WCAG 2.x (luminance ratio) for the palette above:
 | `stroke.control` on `surface.card` | ≈ 3.5 | ≥ 3 |
 
 Rule: when any token changes, recompute the rows of the table. The "card background on window
-background" pair (≈ 1.2:1) is deliberately soft: it is decoration, not an element boundary.
+background" pair (≈ 1.2:1) is deliberately soft: it is decoration, not an element boundary. The test
+`both_palettes_meet_the_contrast_table` in `ui/theme/tokens.rs` checks every row for both themes, so a
+token that breaks the table fails the build.
+
+### 3.1 Light theme
+
+Every token has a dark and a light value (`Token` in `ui/theme/tokens.rs`); widgets never pick a theme
+themselves. Light values follow the WinUI 3 light tokens, with no pure `#FFFFFF`/`#000000`:
+
+| Token | Light | Token | Light |
+| --- | --- | --- | --- |
+| `surface.sunken` | `#EEEEEE` | `text.primary` | `#1B1B1B` |
+| `surface.base` | `#F3F3F3` | `text.secondary` | `#4F4F4F` |
+| `surface.card` | `#FBFBFB` | `text.tertiary` | `#6B6B6B` |
+| `surface.card.hover` | `#F6F6F6` | `text.disabled` | `#A3A3A3` |
+| `surface.overlay` | `#F9F9F9` | `text.on-accent` | `#FAFAFA` |
+| `control.fill` | `#FDFDFD` | `accent` | `#005FB8` |
+| `control.fill.hover` | `#F6F6F6` | `accent.hover` | `#0A6AC4` |
+| `control.fill.pressed` | `#F0F0F0` | `accent.pressed` | `#004C93` |
+| `control.fill.disabled` | `#F5F5F5` | `accent.subtle` | `#D3E5F5` |
+| `stroke.subtle` | `#E5E5E5` | `status.success` | `#0F7B0F` |
+| `stroke.default` | `#D1D1D1` | `status.caution` | `#8F5500` |
+| `stroke.control` | `#8A8A8A` | `status.critical` | `#C42B1C` |
+| `focus.ring` | `#1F1F1F` | `status.info` | = `accent` |
+| `device.glow` | `#62BDEC` | `device.shadow` | `#8C8C8C` |
+
+The accent is darker in the light theme so that it keeps ≥ 4.5:1 on light surfaces. Mica is re-tinted
+for the chosen theme. The application icon keeps its dark tile in both themes: it is identity, not
+interface.
 
 ## 4. Typography
 
@@ -150,9 +182,41 @@ The base unit is **4 px**. Allowed steps: 4, 8, 12, 16, 24, 32, 48.
 | Card and overlay radius (menus, dialogs) | 8 px |
 | Stroke | 1 px |
 | Icon size | 16 px in dense places, 20 px by default, 24 px in headings |
+| Device tile | Square, at least 224 px (`size::DEVICE_TILE_MIN`); 64 px kind icon when there is no model |
 
 Alignment: text on the baseline, icon and text in a row centered; all card edges lie on column lines.
 Non-standard values (7 px, 13 px) are forbidden.
+
+### 5.1 Adaptive layout
+
+The layout follows the window at every size and reflows live while the window is resized. Nothing has
+a fixed page width, nothing stops in the middle of a wide window, nothing overflows a narrow one.
+
+1. **Content fills the window.** Pages, cards, lists and headers stretch to the available width minus
+   the page margins. A maximum width is allowed only for **running text**: paragraphs wrap at
+   `size::READABLE_WIDTH` (~75 characters) *or the available width, whichever is smaller*. A text cap
+   never widens its container.
+2. **Breakpoints are tokens** (`ui/theme/tokens.rs`, `breakpoint`), modeled on the WinUI size classes:
+
+   | Token | Measured on | Value | Effect |
+   | --- | --- | --- | --- |
+   | `NAV_EXPANDED` | window | 1008 px | Below it the navigation pane collapses to icons (48 px) |
+   | `PAGE_COLUMNS` | page content | 960 px | From it the cards of a page stand in two columns |
+   | `SECTION_COLUMNS` | card content | 560 px | Below it the side-by-side parts of one card stack |
+
+   Content breakpoints are measured on the space a part actually gets, not on the window, so the same
+   component works in a column, in a narrow window and next to an expanded pane.
+3. **Reflow, not scaling.** Wide layouts add columns (`pages/layout.rs`, `columns`); narrow ones stack.
+   Controls keep their size from section 5; text is never shrunk to fit.
+4. **Changes between layouts are animated** where geometry moves (the pane width uses
+   `spring.standard`); a reflow of cards follows the window directly, without lag.
+5. **No layout flips in the middle of a motion.** While the pane collapses or expands, content
+   breakpoints are decided on the width the content *will* have when the pane settles
+   (`settled_width`), so columns switch once, at the start. Labels of the pane fade with its width and
+   slide under its edge instead of disappearing at a threshold.
+5. **Check every page at three widths**: the minimum window (720 px), the default (1040 px) and a wide
+   monitor (1600 px). `--review DIR` renders each scene at all three; the result is attached to the
+   change description.
 
 ## 6. Materials: acrylic
 
@@ -175,6 +239,10 @@ Acrylic is a translucent blurred Windows 11 material. We use it **sparingly**.
   decided on a prototype by looks and load (section 5 of `ARCHITECTURE.md`). Custom blur shaders and
   constant repainting for the sake of the effect are forbidden. On systems without material support the
   window runs on fallback colors with no loss of function.
+- **Decision (0.3.0):** Mica, applied with `window_vibrancy::apply_mica` in `ui/mod.rs`. If it fails
+  (Windows 10), the navigation pane is filled with `surface.base`. The content area is an opaque
+  `surface.base` layer with an 8 px top-left radius and a `stroke.subtle` border. The look on real
+  hardware still has to be confirmed on a Windows 11 machine with transparency effects on.
 
 ## 7. Icons
 
@@ -182,8 +250,10 @@ The only source is the **Hugeicons** set (hugeicons.com), one style across the w
 (Stroke Rounded with a 1.5 px line is recommended). Styles must not be mixed and icons from other sets
 must not be blended in.
 
-- Icons are stored as a **font subset** (only the glyphs in use) and referenced through `enum Icon` in
-  `ui/icons.rs`. An icon's color is a text or status token.
+- Icons are stored as **embedded vector outlines of only the glyphs in use** (Hugeicons Free 4.3.5,
+  Stroke Rounded, `ui/icons/glyphs.rs`) and referenced through `enum Icon` in `ui/icons/mod.rs`. They
+  are flattened once and stroked at 1.5 px on the 24 px grid. A font subset is not used because font
+  glyphs are fills, while the set is stroke-based. An icon's color is a text or status token.
 - An icon next to text has the same color as the text, except for statuses.
 - An icon without a label gets a tooltip and an accessible name.
 - **License:** before adding to the repository, check the terms of exactly the set and format in use
@@ -203,7 +273,7 @@ states are defined by the tokens in section 3; we do not introduce new colors fo
 | Regular button | `control.fill` + `stroke.default`, text `text.primary` |
 | Dangerous action | Regular button with an icon and `status.critical` text; confirmation as a separate step |
 | Input field | `surface.sunken`, `stroke.control` border, a 2 px `accent` bottom line on focus |
-| Switch, checkbox | Off: `stroke.control` border; on: `accent` fill |
+| Switch, checkbox | Off: `stroke.control` border; on: `accent` fill. The switch track is 40 × 20 with a 4 px radius and a 12 px thumb (no pill shape, section 2) |
 | Card | `surface.card`, radius 8, `stroke.subtle` border, no shadow |
 | Navigation | On the left; the selected item gets `accent.subtle` and a 3 px vertical `accent` bar |
 | Dialog | `surface.overlay`, radius 8, background dimming with `surface.sunken` at 60% opacity |
@@ -212,12 +282,51 @@ states are defined by the tokens in section 3; we do not introduce new colors fo
 
 Every state changes smoothly under the rules of section 9; there are no "instant" switches.
 
+### 8.1 Device tiles (fixed for every device)
+
+Found devices are shown as **square tiles**, never as long flat rows. The view is the same for every
+device and every kind (keyboards, mice, lighting, fans, ...); only the model inside changes.
+
+- **The list keeps itself current.** Devices appear and disappear as they are plugged in and out;
+  the user never has to start a search. The header has one regular (not primary) button,
+  "Refresh", with the search icon: a forced search. While a search runs it shows the busy state.
+- **Recognized but not enabled.** A device whose driver is experimental and off still gets its
+  tile, with a `status.caution` "Driver off" badge instead of "Experimental". Its page explains
+  why nothing is sent to it and offers "Open settings"; turning the setting on searches again.
+- **Grid.** Tiles stand in as many columns as fit (`size::DEVICE_TILE_MIN` = 224 px each, 12 px gap);
+  the side is the column width, so the grid fills the content width at any window size. The column
+  count is decided on the settled width (section 5.1).
+- **Stage.** The upper part of the tile is a stage with a 3D model of the device: front, from above,
+  turned slightly to the left. The name (Body Strong) and a caption "kind · vendor · driver" (Caption)
+  sit at the bottom; status badges (for example "Experimental") in the top left corner.
+- **Light.** The model is lit by a warm key light from the upper left and a sky/ground fill; a soft
+  `device.shadow` ellipse lies under it.
+- **Hover.** The model rises (`motion::TILE_RISE`, 8 px, plus a small 3D lift), turns toward the
+  pointer (up to `TILT_YAW` 0.24 rad and `TILT_PITCH` 0.12 rad), the stage behind it glows with a
+  radial `device.glow` spot and the model gets a rim light of the same color. The contact shadow
+  shrinks and fades as the model rises. The card fill flows to `surface.card.hover` as on any card.
+- **Motion.** Lift and glow use `spring.standard`, the turn uses `spring.tilt` (light inertia). All
+  of it is interruptible and returns to rest when the pointer leaves; nothing moves on its own.
+- **No model.** A device without a model shows its kind icon (64 px, `text.secondary`) on the same
+  stage with the same shadow, glow, lift and a small parallax shift instead of the turn.
+- **Where models come from.** A model is data: a profile names it (`visual = "..."`,
+  `docs/ADDING-A-DRIVER.md`) and the file lives in `assets/models/`. The interface never picks a model
+  by brand or driver.
+- **Cost.** The model is drawn by the software rasterizer in `ui/viewer` into a texture only when its
+  pose changes: a half-resolution draft while it moves, one 2×2-supersampled frame when it stops. An
+  idle tile is one textured rectangle. With Windows animations off the model does not turn or rise;
+  only the glow fades in.
+
 ### Application shell and brand neutrality
 
 The application does not belong to a single manufacturer, so the shell is built around the device, not the
 brand:
-- **Navigation on the left:** "Devices" (the list of everything found), "Diagnostics", "Settings"; an
-  opened device gets its own page.
+- **Navigation on the left:** "Devices" (tiles of everything found, section 8.1), "Diagnostics",
+  "Settings"; an opened device gets its own page.
+- **The application is for users, not for developers.** It configures devices; it does not research
+  them. Tools for adding devices (firmware or package analysis, protocol labs) are not part of the
+  interface: static package analysis exists only as the developer command `--inspect`, and
+  "Diagnostics" only checks the connection and saves a passive report a user can send to developers.
 - **A device page** consists of sections by its *capabilities* ("Lighting", "Keys", "DPI", ...): only
   supported ones are shown, the rest are not drawn.
 - The interface does not use manufacturers' brand colors, logos or fonts. A brand name appears only as
@@ -265,6 +374,7 @@ from them: `ω = 2π/T`, `k = ω²`, `c = 2ζω`.
 | `spring.standard` | 0.30 | 1.00 | ≈ 0.23 s | Switches, item selection, expanding a group, popups |
 | `spring.page` | 0.40 | 0.95 | ≈ 0.30 s | Transitions between pages and windows |
 | `spring.release` | 0.32 | 0.80 | ≈ 0.3 s, overshoot ≈ 1.5% | Sliders, the color-picker marker, return after a gesture |
+| `spring.tilt` | 0.50 | 0.90 | ≈ 0.4 s, overshoot ≈ 0.2% | A device model turning toward the pointer (8.1) |
 
 New values are introduced only as tokens in `ui/motion/tokens.rs`. Overshoot > 3% and `ζ` < 0.7 are not
 allowed: the interface must not "bounce" like a cartoon.
@@ -280,10 +390,13 @@ and the animation is removed from repainting.
 | Event | Motion |
 | --- | --- |
 | Hover over a button, row, card | Smooth transition of fill/stroke color to `*.hover`, `spring.fast` |
+| Hover over a device tile | The model rises and turns toward the pointer, the stage glows (8.1); `spring.standard` and `spring.tilt` |
 | Press | Scale to 0.97 and `*.pressed` color, `spring.fast`; release returns taking velocity into account |
 | Keyboard focus | The `focus.ring` fades in (opacity 0 → 1), `spring.fast` |
 | Switch, checkbox | The thumb/check travels to the new position, color flows, `spring.standard`; the thumb stretches slightly while pressed |
 | Navigation item selection | The 3 px `accent` bar **travels** from the old item to the new one instead of fading out and flashing; `spring.standard` |
+| Theme switch | One blend value moves on `spring.standard`; every token mixes its dark and light values by it, so the whole interface flows to the new theme together. The sun and moon icons cross-fade and turn a quarter turn |
+| Navigation pane collapse | Width on `spring.standard`; labels fade with the width (section 5.1) |
 | Expanding a group / list | Height and opacity grow toward the target, `spring.standard`; content does not jerk over neighbors |
 | Menu, tooltip | Appear with opacity 0 → 1 and an 8 px shift from the anchor, `spring.standard`; closing is faster, `spring.fast` |
 | Dialog | The dimming fades in; the dialog window scales 0.96 → 1 with opacity, `spring.standard` |
@@ -345,8 +458,11 @@ Rules:
 ## 11. Design checklist for an interface change
 
 - [ ] Tokens only; no color or size literals outside `ui/theme`.
-- [ ] No gradients, emoji, `#FFFFFF`/`#000000` (except text), or 255/0 channels in styling.
+- [ ] No gradients, emoji, `#FFFFFF`/`#000000` (except text), or 255/0 channels in styling (the device
+      stage of section 8.1 is the only place with a glow and a shadow).
 - [ ] Spacing and sizes are multiples of 4; radii are 4 or 8.
+- [ ] The layout is adaptive (section 5.1): content fills the width, only running text is capped, the
+      `--review` renders at 720, 1040 and 1600 px show no clipped, overflowing or stranded parts.
 - [ ] Icons only from Hugeicons, one style, through `enum Icon`.
 - [ ] Contrast recomputed if the palette changed.
 - [ ] The window backdrop is visible only in the navigation area, and an opaque fallback exists.
