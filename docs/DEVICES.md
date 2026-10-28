@@ -19,9 +19,9 @@ One model by name, different platforms.
 | Marking in the serial number | `…SGAK820MAXULTRARSW…` | `…SGAK820MAXRGPWB2401` (`GPWB2401`) |
 | Type | AK820 MAX Ultra, magnetic switches | AK820 MAX, mechanical switches, three connection modes |
 | Platform | SONiX (`0C45`) | BY Tech (`258A`), Compx radio (`3554`) |
-| Status | Identified from project materials. `--probe` has not been run on this PC | **Identified by `--probe` on 2026-10-28** |
+| Status | Identified from project materials. `--probe` has not been run on this PC | **Identified by `--probe` on 2026-10-28**; protocol restored statically, writes not yet verified |
 | Manufacturer driver | `AJAZZ_AK820_MAX_Single_Mode_RGB_Magnetic_Axis_Keyboard_Driver_Installer` V2.06.01 | `AJAZZ_AK820_MAX_driver_V1.0` (BYCOMBO4) |
-| What the application can do | Color via AA55 (main), SONiX Feature (experimental), diagnostics | Diagnostics and classification only |
+| What the application can do | Color via AA55 (main), SONiX Feature (experimental), diagnostics | Solid color via `by_tech` (experimental, wired only; **not yet verified on the keyboard**), diagnostics |
 | Firmware | The SN34F280 ISP model is described, **writing is not implemented** | Neither the controller nor the image is known |
 
 Earlier, the README and `STATUS.json` wrongly attributed the `GPWB2401` marking to the co-author's
@@ -67,17 +67,59 @@ about the keyboard's board. The wired protocol does not apply to the radio.
 The owner's PC also has another receiver, `3554:F52D`: by all signs it is a mouse receiver, unrelated to
 the keyboard, and ignored in reports.
 
-**What is unknown** (must be established before writing a color driver):
-- The lighting packet format on Report ID 6 for this model and its length.
-- Whether the color persists in keyboard memory, and how to read the current state (needed for rollback).
-- Whether the commands are the same in wired mode and in 2.4G/Bluetooth (a settings block must not be
-  carried between modes without verification: third-party projects report input failures after such a
-  transfer).
-- The controller and bootloader (for firmware: not before the items above, and only with the owner's
-  separate consent).
+#### 1.1.1 Configuration protocol (static analysis, 2026-10-28)
 
-Plan: static analysis of `OemDrv.exe` from V1.0 (it writes via `HidD_SetFeature`) without running it →
-reading state with a Feature report → only then writing a persistent color on a button press.
+Source: `OemDrv.exe` from `AJAZZ_AK820_MAX_driver_V1.0` (SHA256 `fc7109b0…4231c06c`), disassembled
+statically, never run. The vendor class for this keyboard is `CDevG5KB`; `KB.ini` (Wired) gives
+`Fw=24`, `Psd=3,0,0,0,1,42`, `CRC=1`, `RGBIndex=0,1,2`, `LedOpt1=1,...` (effect 1 "Fixed_on").
+Addresses below are virtual addresses in that file, so the analysis can be repeated.
+
+| Fact | Evidence in `OemDrv.exe` |
+| --- | --- |
+| For `Fw = 24` the vendor opens only the collection with usage page `FF00`, usage 1 and a 520-byte Feature report | `CDevG5KB::FindHIDDevice`, `0x48A8BA`–`0x48A916` |
+| Report ID 6 when `Fw = 24` (9 otherwise), 520 bytes per Set/Get Feature | `0x48ACD9`–`0x48ACEB`, `push 208h` before `HidD_SetFeature` |
+| Frame: `[06, cmd, sub, 00, pages, page, len_lo, len_hi, data...]`, at most 512 data bytes per page | `CDevG5KB::AccessData`, `0x48ABE0` |
+| Read = Set Feature with the request, 20 ms, Get Feature; data from byte 8; the vendor checks neither echo nor checksum (the keyboard does echo the header, see below) | `0x48B3E0`–`0x48B4E0` |
+| Family check: request `0x82`, sub 1, 6 bytes; the reply must equal `Psd` byte for byte, else the handle is closed | `GetPassword` `0x48BC10`, compare at `0x48A987` |
+| `0x04` / `0x84`: 128-byte configuration block; the vendor itself reads it, changes bytes and writes it back | `0x48A140` (`GetLED` → `[9]=0`, `[0x0A]=effect` → `SetLED`) |
+| Block fields: `[0x09]` game-mode flag, `[0x0A]` effect id, from `0x38` two bytes per effect id: speed, `brightness << 4 \| color slot` (slot 7 = random) | `0x48CE20`–`0x48CEDB` |
+| `0x0A` / `0x8A`: color table, 21 bytes (7 RGB slots) per effect id from id 1; with `CRC=1` padded to 512 bytes and marked `5A A5` at `0x1FA` | `0x48D759`–`0x48D9C5` |
+| Other commands (`0x03` key matrix, `0x05` macros, `0x06` game, `0x0B` screen, `0x08`, `0x0E`) exist and are **not** used | vtable at file offset `0x20E1DC` |
+
+What the `by_tech` driver does with it:
+- Admission: the collection above plus the `by_tech` profile (`258A:010C`). A device is accepted only if
+  the password reply equals one of the package's `Psd` values: `03 00 00 00 01 42` (single-mode board,
+  `Dev/kb/Wired`) or `03 00 00 00 01 5E` (tri-mode board, `Dev/kb/Thr`). The two `KB.ini` files are
+  identical in `Fw`, `CRC`, `LedOpt*`, `RGBIndex` and the key layout. Only the USB connection is
+  supported; the radio receiver `3554:FA09` is not admitted.
+- Replies: Windows reports only the bytes the keyboard sent (8-byte header + data, for example 14 bytes
+  for the password), and the keyboard echoes the request header. The driver requires Report ID 6, the
+  same command byte and at least the requested data length.
+- Discovery and `--probe` send only reads: password, configuration block, color table.
+- "Apply" (button press only): reads both blocks, refuses unknown values (effect > 21, brightness > 4,
+  slot > 7, table without `5A A5`), stores a backup of both blocks, sets effect 1 (static) with color
+  slot 0, keeps the brightness (0 becomes 4) and speed, writes the changed blocks once each, waits
+  200 ms and reads both back. Any difference is reported as a read-back mismatch, never retried.
+- "Restore" and "From backup" write the saved blocks the same way.
+
+**Still unknown** (to be closed by the owner's verification):
+- Whether the firmware echoes exactly what was written (the read-back compares whole blocks).
+- Whether the flash write of these blocks has a wear limit worth tracking (writes happen only per
+  button press).
+- Whether 2.4G/Bluetooth use the same blocks: not supported, the receiver is not admitted.
+- The controller and bootloader: firmware work stays out of scope.
+
+**Read on the owner's keyboard** (`--probe` over USB, 2026-10-28; reads only):
+- Password `03 00 00 00 01 5E`: the tri-mode board, as the keyboard's three connection modes suggest.
+- The configuration block matches the layout above byte for byte where the analysis predicted it:
+  `[0x09] = 00`, `[0x0A] = 07` (effect 7, "Ripples shining", was active), `[0x0B] = 20` (`StartGp`),
+  `[0x38..0x39] = FF FF`, and from `0x3A` pairs such as `04 37` (speed 4, brightness 3, slot 7 =
+  random) with every brightness in 1..4 and every slot in 4..7. The block also ends with `5A A5`
+  (`0x7E`). The driver accepted it as valid.
+
+Verification still to do by the owner: with experimental drivers on, one "Apply" and one "Restore" on
+the keyboard connected by cable. The result goes to the log below; on success the driver becomes
+`Stable` and the profile `written_by_owner`.
 
 ### 1.2 Magnetic AK820 MAX Ultra (co-author)
 
@@ -106,10 +148,14 @@ Admission matrix. "No" means the adapter rejects the device by VID/PID and inter
 | SONiX Feature | Possible (experimental) | No | `0C45:8009/800A`, `FF13` Feature 65, `FF68` Output 4097 |
 | HID LampArray | No (no such interface) | No | `0059:0001` and a valid descriptor |
 | OpenRGB SDK | If supported by OpenRGB itself | If supported by OpenRGB | Local server at `127.0.0.1:6742` |
-| BY Tech | No | **Target**, not implemented | `258A:010C` + a confirmed format |
+| BY Tech | No | Yes, experimental (wired) | `FF00:0001`, Feature 520, profile `258A:010C`, password reply `…01 42` or `…01 5E` (single- or tri-mode board), USB only |
 
-Every "No" in the GPWB2401 column was checked against the code and the probe of 2026-10-28; fixture
-tests should lock this in (`docs/ADDING-A-DRIVER.md`, rule 3).
+Every "No" in the GPWB2401 column was checked against the code and the probe of 2026-10-28 and is locked
+in by `tests/admission.rs` (`docs/ADDING-A-DRIVER.md`, rule 3). Since 0.3.0 the AA55 and Feature
+adapters also require a matching entry in `src/profiles/data/sonix.toml`; SONiX Feature is off unless
+experimental drivers are enabled. The co-author's keyboard has not been checked with 0.3.0: HID handles
+are now opened per operation, so a `--lighting-probe sonix_aa55` and one color write by the owner should
+be recorded in the log below before the AA55 row is treated as unchanged.
 
 ## 3. Driver packages and sources
 
@@ -128,7 +174,7 @@ need to download a Windows driver, because the application uses the stock HID dr
 
 ## 4. How to add a device or a verification result
 
-1. `ak820max-assistant.exe --probe report.json` (read-only).
+1. `lusorium-studio.exe --probe report.json` (read-only).
 2. Make sure the JSON contains no serial number or Windows paths; put the fixture into `tests/fixtures/`.
 3. Add a section to this file: identifiers, interfaces, protocol source, what is unknown.
 4. Add a row to the log below. For a write to a device: who did it and on whose hardware.
@@ -137,6 +183,9 @@ need to download a Windows driver, because the application uses the stock HID dr
 
 | Date | What | Device | Who | Result |
 | --- | --- | --- | --- | --- |
+| 2026-10-28 | Automatic search in the application with experimental drivers on (password, configuration block, color table; reads only) | GPWB2401 | owner | Keyboard found as AK820 MAX; the color table passed its `5A A5` check; no writes |
+| 2026-10-28 | `--probe` over USB with `by_tech` (password, configuration block; reads only) | GPWB2401 | owner | Password `…01 5E` (tri-mode); block valid, layout confirmed; no writes |
+| 2026-10-28 | Static analysis of `OemDrv.exe` (V1.0), protocol of section 1.1.1 | GPWB2401 | audit | Driver `by_tech` written; nothing sent to the keyboard |
 | 2026-10-28 | `--probe` over 2.4G (receiver) | GPWB2401 | owner | Only `3554:FA09` is visible; the board is not |
 | 2026-10-28 | `--probe` over USB | GPWB2401 | owner | `258A:010C`; no SONiX/AA55/LampArray; read-only, no writes |
 | 2026-10-27 | Static check of the Drv packages | n/a | audit | See `docs/DRV-COMPATIBILITY-AUDIT.md` |

@@ -1,0 +1,113 @@
+# Passive classification of HID interfaces for diagnostics. The first matching rule wins, so more
+# specific rules come first. Every rule also selects interfaces for the diagnostic probe. A family
+# match is a hypothesis about the controller, never a compatibility proof.
+
+[[family]]
+name = "BY Tech / Sinowealth 010C candidate"
+vid = 0x258A
+pid = 0x010C
+hint.en = "This USB ID is listed in the AK820MAX V1.0 package. Separate Report ID 6 protocol; no SONiX commands are sent."
+hint.ru = "В пакете AK820MAX V1.0 найден этот USB-ID. Отдельный протокол Report ID 6; команды SONiX не отправляются."
+
+[[family]]
+name = "BY / Compx RF receiver candidate"
+vid = 0x3554
+pid = 0xFA09
+hint.en = "Listed as the wireless ID in AK820MAX V1.0. The wired protocol does not apply to the radio channel."
+hint.ru = "Указан как беспроводной в AK820MAX V1.0. Проводной протокол к радиоканалу не применяется."
+
+[[family]]
+name = "HID LampArray"
+usage_page = 0x59
+usage = 1
+hint.en = "Standard RGB lighting. The device page appears after a search; descriptor fields are checked first."
+hint.ru = "Стандартная RGB-подсветка. Устройство появится после поиска; поля дескриптора проверяются заранее."
+
+[[family]]
+name = "SONiX SN34F280 ROM ISP"
+vid = 0x0C45
+pid = 0x7210
+hint.en = "Bootloader: lighting commands and any automatic write are forbidden."
+hint.ru = "Загрузчик: команды подсветки и любая автоматическая запись запрещены."
+
+[[family]]
+name = "SONiX RF receiver"
+vid = 0x0C45
+pid = 0xFEFC
+hint.en = "Radio receiver: its firmware differs from the keyboard firmware."
+hint.ru = "Радиоприёмник: его прошивка отличается от прошивки клавиатуры."
+
+[[family]]
+name = "SONiX Feature / candidate"
+vid = 0x0C45
+usage_page = 0xFF13
+usage = 1
+feature_bytes = 65
+hint.en = "AK820 Pro/MAX/PLUS family, settings 04 xx. The experimental driver checks the USB container and START."
+hint.ru = "Семейство AK820 Pro/MAX/PLUS, настройки 04 xx. Экспериментальный драйвер проверяет USB-контейнер и START."
+
+[[family]]
+name = "SONiX Feature data / candidate"
+vid = 0x0C45
+usage_page = 0xFF68
+usage = 0x61
+output_bytes = 4097
+hint.en = "Large data channel. Not the 65-byte AA55 command channel."
+hint.ru = "Большой канал данных. Не путать с командным каналом AA55 на 65 байт."
+
+[[family]]
+name = "SONiX AA55 / candidate"
+vid = 0x0C45
+usage_page = 0xFF68
+usage = 0x61
+input_bytes = 65
+output_bytes = 65
+hint.en = "Shared AK820 Pro/MAX command protocol. GET_INFO does not reveal the switch type or image compatibility."
+hint.ru = "Общий командный протокол AK820 Pro/MAX. GET_INFO не определяет тип переключателей и совместимость образа."
+
+[[family]]
+name = "ROYUAN / candidate"
+vids = [0x3151, 0x0416]
+usage_page = 0xFFFF
+usage = 2
+hint.en = "Similar commands across several generations; one VID/PID is not enough."
+hint.ru = "Похожие команды у нескольких поколений; одного VID/PID недостаточно."
+
+[[family]]
+name = "BY Tech / candidate"
+vid = 0x258A
+hint.en = "Another AK820/AULA branch. Its package and protocol are needed."
+hint.ru = "Другая ветка AK820/AULA. Нужны её пакет и протокол."
+
+[[family]]
+name = "EVision / candidate"
+vid = 0x320F
+usage_page = 0xFF1C
+hint.en = "Another AK820 controller. SONiX firmware is incompatible."
+hint.ru = "Другой контроллер AK820. Прошивка SONiX несовместима."
+
+[[family]]
+name = "VIA/Vial raw HID / candidate"
+usage_page = 0xFF60
+usage = 0x61
+hint.en = "Configuration protocol; VIA support does not mean QMK firmware compatibility."
+hint.ru = "Протокол конфигурации; поддержка VIA не означает совместимость с прошивкой QMK."
+
+# Interfaces of known keyboard vendors that no rule above explains are still worth a report.
+[[family]]
+name = "HID / unclassified"
+vids = [0x0C45, 0x0416, 0x3151, 0x320F, 0x3554]
+hint.en = "Descriptors saved passively; no configuration commands are sent."
+hint.ru = "Дескрипторы сохранены пассивно; команды настройки не отправляются."
+
+[[family]]
+name = "HID / unclassified"
+product_contains = "AJAZZ"
+hint.en = "Descriptors saved passively; no configuration commands are sent."
+hint.ru = "Дескрипторы сохранены пассивно; команды настройки не отправляются."
+
+[[family]]
+name = "HID / unclassified"
+product_contains = "AK820"
+hint.en = "Descriptors saved passively; no configuration commands are sent."
+hint.ru = "Дескрипторы сохранены пассивно; команды настройки не отправляются."

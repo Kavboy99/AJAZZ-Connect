@@ -1,0 +1,24 @@
+# Devices on SONiX controllers (VID 0C45). A profile hints which driver to try; the driver still
+# checks report sizes and a safe reply before it sends anything else.
+
+[[device]]
+vendor = "AJAZZ"
+model = "AK820 Pro / MAX"
+kind = "keyboard"
+visual = "ak820-max"
+driver = "sonix_aa55"
+support = "identified"
+vid = 0x0C45
+# The same retail names exist on other controllers, so the name only narrows the search.
+product_contains = "AK820"
+
+[[device]]
+vendor = "AJAZZ"
+model = "AK820 / AK820 MAX (Feature)"
+kind = "keyboard"
+visual = "ak820-max"
+driver = "sonix_feature"
+support = "identified"
+vid = 0x0C45
+pids = [0x8009, 0x800A]
+product_names = ["AK820 MAX", "AK820"]

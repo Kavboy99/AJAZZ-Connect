@@ -1,4 +1,4 @@
-# AGENTS.md — project (working name "AJAZZ Connect")
+# AGENTS.md — project "Lusorium Studio"
 
 Single set of rules for developers and AI agents (Claude Code, Codex, etc.). `CLAUDE.md` only
 imports this file. Details live in `docs/`; this file holds what you must know before the first edit.
@@ -6,20 +6,34 @@ imports this file. Details live in `docs/`; this file holds what you must know b
 ## What this project is
 
 A lightweight Windows application for **configuring and customizing any PC device**: keyboards,
-mice, lighting, fans and other peripherals from different manufacturers (lighting, remapping, USB/HID
-diagnostics, static firmware analysis). The manufacturer is not a property of the application but of a
-driver: everything that knows about a specific brand lives only in `drivers/` and in device profiles.
+mice, lighting, fans and other peripherals from different manufacturers (lighting, remapping, passive
+USB/HID diagnostics). The manufacturer is not a property of the application but of a driver: everything
+that knows about a specific brand lives only in `drivers/` and in device profiles.
 
-**The name "AJAZZ Connect" is a working name and will be replaced.** Rules:
+**The application is for users.** Adding new devices is the work of developers and contributors, and
+their tools do not belong in the interface: no firmware or package analysis, no protocol labs, no
+"research" screens. Static package analysis lives only in the developer command `--inspect` and in
+`tools/`; the interface's "Diagnostics" only checks the connection and saves a passive report.
+
+**Found devices are shown as square tiles with a 3D model of the device** (lit, turning slightly
+toward the pointer, rising on hover with a soft glow behind it), for every device and kind, never as
+long flat rows. A device without a model shows its kind icon on the same stage. Rules:
+`docs/DESIGN.md`, section 8.1.
+
+**The product is called "Lusorium Studio"** (renamed from the working name "AJAZZ Connect" on
+2026-10-28; the exe is `lusorium-studio.exe`). Rules:
 - The product name, data paths and strings are never hard-coded as literals. The single source is the
-  application identity module (`app/identity.rs`, target): name, exe name, data directory, OpenRGB
-  client name. New code refers to the product only through it.
+  application identity module (`src/app/identity.rs`): name, data directory, lock prefix, OpenRGB
+  client name; the package and exe name live in `Cargo.toml`, the app icon in
+  `src/ui/icons/app_icon.rs`. New code refers to the product only through them.
 - The product name, icon and UI contain no third-party trademarks. Manufacturer names are allowed only
   as a description of supported hardware ("compatible with ...").
 - Compatibility with a manufacturer's own software (for example the AJAZZ Studio mutex) is a detail of
   that brand's driver, not of the core.
-- On renaming, data from the old directory (`%LOCALAPPDATA%\AjazzConnect`) is migrated so backups are
-  not lost. The places that carry the old name are listed in `docs/ARCHITECTURE.md`, section 7.
+- On renaming, data from the old directory is migrated so backups are not lost: the previous name goes
+  to `LEGACY_DATA_DIRS` in `identity.rs` (today `%LOCALAPPDATA%\AjazzConnect` moves to
+  `%LOCALAPPDATA%\LusoriumStudio` on first launch). The places that carry the name are listed in
+  `docs/ARCHITECTURE.md`, section 7.
 
 Only keyboards are implemented today (AJAZZ AK820 MAX and OpenRGB-compatible ones). That is the initial
 support, not the boundary of the project.
@@ -32,7 +46,7 @@ either of them (or any other device).
 | Label | Keyboard | Platform | Support status |
 | --- | --- | --- | --- |
 | Magnetic (co-author) | AK820 MAX Ultra, marking `…ULTRARSW…` | SONiX `0C45`, AA55 protocol | AA55/Feature adapters exist; code was written for it |
-| Mechanical (repository owner) | AK820 MAX, marking `…RGPWB2401` (`GPWB2401`) | BY Tech `258A:010C`, radio `3554:FA09` | Recognized only. No lighting control |
+| Mechanical (repository owner) | AK820 MAX, marking `…RGPWB2401` (`GPWB2401`) | BY Tech `258A:010C`, radio `3554:FA09` | `by_tech` driver (experimental, wired): protocol restored statically from the vendor package, **writes not yet verified by the owner** |
 
 These are **different controllers and different protocols**. The name "AK820MAX" proves nothing; the
 same holds for any brand: one name does not mean one protocol. Full data, versions, package hashes and
@@ -63,6 +77,9 @@ the verification log: `docs/DEVICES.md`.
 7. **The interface is alive and smooth**: everything is interactive, and states and page transitions are
    animated physically (springs, inertia, interruptibility), but animation spends resources only while
    something is moving. Rules: `docs/DESIGN.md`, section 9.
+   **The layout is adaptive**: it fills the window at any size and reflows while the window is resized
+   (columns on wide windows, stacking on narrow ones, breakpoints only from tokens); no fixed page
+   width, only running text is capped. Rules: `docs/DESIGN.md`, section 5.1.
 8. **Language.** Code identifiers, code comments, commit messages and all documents in `docs/` are in
    **English**. User-facing UI text lives in a single string table (`ui/strings.rs`, target) so it can
    be translated; the Russian UI is the current default. Comments explain "why", not "what". Older
@@ -108,7 +125,7 @@ Passive diagnostics (writes nothing to the device; the EXE is built as a GUI app
 the JSON, not from the console):
 
 ```powershell
-target\release\ak820max-assistant.exe --probe report.json
+target\release\lusorium-studio.exe --probe report.json
 ```
 
 `build.ps1` and `package*.ps1` contain hard-coded paths of the previous developer
@@ -134,6 +151,8 @@ target\release\ak820max-assistant.exe --probe report.json
 - [ ] A driver has a codec on plain bytes and hardware-free tests on fixtures.
 - [ ] Verified that the adapter rejects a keyboard of another family.
 - [ ] The UI follows `docs/DESIGN.md` (colors only from tokens, icons only from the set).
+- [ ] The layout is adaptive (section 5.1 of `DESIGN.md`): checked with `--review` at 720, 1040 and
+      1600 px.
 - [ ] Every action and state change is smoothly animated with springs from `ui/motion` (section 9 of
       `DESIGN.md`): interruptible, velocity-preserving, no endless animations; no repaint when idle.
 - [ ] Documents are updated: `docs/DEVICES.md` (if support changed), `README.md`, `STATUS.json`.

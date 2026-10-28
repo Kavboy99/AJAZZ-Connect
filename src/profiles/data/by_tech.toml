@@ -1,0 +1,21 @@
+# BY Tech / Sinowealth platform (BYCOMBO4 vendor software). The `by_tech` driver still checks the
+# 520-byte Feature collection and the wired password before it sends anything else.
+
+[[device]]
+vendor = "AJAZZ"
+model = "AK820 MAX"
+kind = "keyboard"
+visual = "ak820-max"
+driver = "by_tech"
+support = "identified"
+vid = 0x258A
+pids = [0x010C]
+
+# The receiver shows only the radio channel; the keyboard's protocol does not apply to it.
+[[device]]
+vendor = "AJAZZ"
+model = "AK820 MAX 2.4G receiver"
+kind = "other"
+support = "identified"
+vid = 0x3554
+pids = [0xFA09]

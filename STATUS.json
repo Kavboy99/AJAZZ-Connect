@@ -1,7 +1,7 @@
 {
-  "application": "AJAZZ Connect",
-  "version": "0.2.0",
-  "stage": "multi_protocol_lighting_and_firmware_research",
+  "application": "Lusorium Studio",
+  "version": "0.3.0",
+  "stage": "by_tech_driver_and_device_tiles",
   "target_marking": "GPWB2401",
   "target_description": "Mechanical AK820 MAX of the repository owner; BY Tech platform",
   "keyboards": {
@@ -12,26 +12,40 @@
       "usb_wireless_receiver": "3554:FA09",
       "usb_identity_verified": true,
       "verified_on": "2026-10-28",
-      "native_driver": false,
-      "lighting_control": false
+      "native_driver": "by_tech (experimental, wired)",
+      "lighting_control": "implemented from static analysis of OemDrv.exe V1.0; read path verified by --probe on 2026-10-28 (tri-mode password, valid configuration block); writes not yet verified",
+      "protocol_source": "docs/DEVICES.md, section 1.1.1"
     },
     "ULTRARSW": {
       "owner": "co-author",
       "switch_type": "magnetic",
       "usb_wired": "0C45:80A0 (from project research, not probed on this PC)",
       "usb_identity_verified": false,
-      "native_driver": "stock-sonix-aa55",
-      "lighting_control": true
+      "native_driver": "sonix_aa55",
+      "lighting_control": true,
+      "verified_with_current_version": false
     }
   },
-  "lighting_backends": ["stock-sonix-aa55", "sonix-feature-experimental", "hid-lamparray", "openrgb-sdk-1-to-3"],
-  "settings_writes": "explicit Apply button only; AA55 and Feature may persist lighting settings",
+  "drivers": {
+    "sonix_aa55": "stable",
+    "sonix_feature": "experimental, off by default",
+    "hid_lamparray": "stable",
+    "openrgb": "stable",
+    "by_tech": "experimental, off by default"
+  },
+  "settings_writes": "explicit Apply button only; sonix_aa55, sonix_feature and by_tech persist lighting settings",
+  "device_tiles": "square tiles with a 3D model (docs/DESIGN.md 8.1); CPU-rendered only while the pose changes",
+  "firmware_analysis_in_ui": false,
+  "startup_device_access": "read-only automatic search at startup and on HID arrival/removal (OS notification, no polling)",
+  "hid_handle_lifetime": "per operation",
   "firmware_image_for_target_verified": false,
   "flash_implementation_exposed": false,
   "boot_or_erase_commands_exposed": false,
   "new_backends_physically_tested_locally": false,
+  "idle_measurement_2026_10_28": { "working_set_mb": 69, "cpu_ms_per_5s": 0 },
+  "idle_measurement_with_tiles_2026_10_28": { "working_set_mb_without_model": 86, "working_set_mb_with_model": 94, "cpu_ms_per_5s": 0 },
   "third_party_hardware_evidence": "OpenKey author reports AK820 MAX PLUS 0C45:8009 lighting success on 2026-10-11; this is not a local test of this implementation",
-  "reason": "No adapter matches GPWB2401 (BY Tech 258A:010C). The BY Tech lighting format for this model is not established; the firmware image and controller are unknown.",
+  "reason": "GPWB2401 (BY Tech 258A:010C) has the experimental by_tech driver; its writes wait for the owner's verification. The firmware image and controller are unknown.",
   "needed_for_target_flashing": "Controller/board mapping, bootloader, exact compatible firmware image and the owner's written consent. Archive names alone do not establish switch type or revision.",
   "documentation": "docs/DEVICES.md"
 }
