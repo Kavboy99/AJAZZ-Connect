@@ -11,6 +11,8 @@ use crate::diagnostics::{Interface, Report};
 struct ReviewDevice {
     descriptor: DeviceDescriptor,
     traits: LightingTraits,
+    programs: Option<crate::core::LightingEditor>,
+    lighting_available: bool,
 }
 
 impl Device for ReviewDevice {
@@ -19,7 +21,7 @@ impl Device for ReviewDevice {
     }
 
     fn lighting(&mut self) -> Option<&mut dyn Lighting> {
-        Some(self)
+        self.lighting_available.then_some(self)
     }
 }
 
@@ -28,6 +30,9 @@ fn offline() -> DriverError {
 }
 
 impl Lighting for ReviewDevice {
+    fn editor(&self) -> Option<crate::core::LightingEditor> {
+        self.programs.clone()
+    }
     fn traits(&self) -> LightingTraits {
         self.traits
     }
@@ -64,6 +69,8 @@ fn device(
     visual: Option<&str>,
 ) -> Box<dyn Device> {
     Box::new(ReviewDevice {
+        programs: None,
+        lighting_available: true,
         descriptor: DeviceDescriptor {
             kind,
             vendor: vendor.map(str::to_owned),
@@ -74,6 +81,81 @@ fn device(
         },
         traits,
     })
+}
+
+pub(super) fn native_devices() -> Discovered {
+    native_devices_for(0)
+}
+
+pub(super) fn native_devices_for(current: u8) -> Discovered {
+    use crate::core::{LightingEditor, LightingEffect as E, LightingPreset, LightingSettings};
+    let mut found = devices();
+    let descriptor = found.devices[0].descriptor().clone();
+    let presets = [
+        E::Solid,
+        E::Breathing,
+        E::Rainbow,
+        E::Flash,
+        E::Rain,
+        E::RainbowWheel,
+        E::Ripples,
+        E::Stars,
+        E::Fade,
+        E::Snake,
+        E::Neon,
+        E::Reactive,
+        E::Sine,
+        E::Scan,
+        E::Windmill,
+        E::Waterfall,
+        E::Blossom,
+        E::Storm,
+        E::Off,
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(i, effect)| LightingPreset {
+        effect,
+        saved: LightingSettings {
+            preset: i as u8,
+            brightness: 3,
+            speed: 2,
+            color: None,
+        },
+        brightness_max: (effect != E::Off).then_some(4),
+        speed_max: (!matches!(effect, E::Off | E::Solid)).then_some(4),
+        custom_color: !matches!(effect, E::Off | E::Rainbow),
+    })
+    .collect();
+    found.devices[0] = Box::new(ReviewDevice {
+        lighting_available: true,
+        descriptor,
+        traits: LightingTraits {
+            writable: true,
+            persistent: true,
+            rollback: Rollback::SessionAndFile,
+        },
+        programs: Some(LightingEditor { presets, current }),
+    });
+    found
+}
+
+pub(super) fn connection_devices(driver: DriverInfo) -> Discovered {
+    let mut found = devices();
+    let mut descriptor = found.devices[0].descriptor().clone();
+    descriptor.driver = driver;
+    let traits = LightingTraits {
+        writable: false,
+        persistent: true,
+        rollback: Rollback::Unavailable,
+    };
+    found.devices[0] = Box::new(ReviewDevice {
+        descriptor,
+        traits,
+        programs: None,
+        lighting_available: false,
+    });
+    found
 }
 
 pub fn devices() -> Discovered {
@@ -112,6 +194,8 @@ pub fn devices() -> Discovered {
                         pid: 0x80a0,
                     },
                     Detail::Firmware("1.36".into()),
+                    Detail::Battery(79),
+                    Detail::Power(crate::core::PowerSource::External),
                 ],
                 persistent,
                 Some("ak820-max"),

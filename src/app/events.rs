@@ -25,6 +25,7 @@ pub struct Discovered {
 }
 
 pub enum Event {
+    Battery(Vec<BatteryResult>),
     Discovered(Discovered),
     /// An automatic search found the same interfaces as before; nothing was sent to any device.
     Unchanged,
@@ -35,6 +36,12 @@ pub enum Event {
     },
     /// Boxed: a report is far larger than the other events.
     Probed(Box<Result<Report, DriverError>>),
+}
+
+pub struct BatteryResult {
+    pub slot: usize,
+    pub device: Box<dyn Device>,
+    pub result: Result<(), DriverError>,
 }
 
 /// Each task gets its own thread for the duration of one operation; no pool stays alive.

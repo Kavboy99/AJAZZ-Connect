@@ -1,7 +1,6 @@
 # How to add a driver or a device
 
-A guide for community contributors. The application is meant for devices of any manufacturer and kind,
-so there are two ways to add support.
+A guide for project developers. Direct support is added for specific devices and hardware revisions in the proprietary device-control system. There are two ways to add support.
 
 **Path A: a new device of a known protocol (no code).** If the protocol is already implemented by a
 driver (for example `hid_lamparray` or `sonix_aa55`), a `[[device]]` record in
@@ -122,3 +121,16 @@ insufficient: open a discussion instead of working around it.
       `written by owner` → `confirmed`).
 - [ ] Licenses of dependencies and sources are in `THIRD-PARTY.md`.
 - [ ] The change description states who verified it and on which device.
+
+### Catalog model grouping
+
+Use the optional catalog_model profile field to explicitly group driver variants under one model name in developer previews. Grouping also requires matching vendor and device kind. It never changes HID matching, admission or the live driver. Do not infer groups from shared visual assets. Each group's variant selector is offline only.
+
+
+### Offline model placeholders
+
+For a model preview before a protocol is known, add `[[preview]]` to
+`src/profiles/data/previews.toml` with `vendor`, `model`, `kind` and `visual`. Register the embedded
+asset in `ui/viewer/catalog.rs`. Do not invent USB identifiers, attach an unrelated driver or add the
+entry to hardware discovery. The catalog renders driver-free entries with a placeholder badge and
+no capability controls. AJ159 is the first such entry.

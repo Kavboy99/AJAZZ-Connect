@@ -6,13 +6,14 @@ mod icons;
 mod motion;
 mod pages;
 mod shell;
-mod strings;
+pub(crate) mod strings;
 mod theme;
 mod viewer;
 mod widgets;
 
 pub use app::App;
 pub use pages::Route;
+pub use viewer::gpu::{ReviewGpu, stats as gpu_stats};
 pub use viewer::preload as preload_models;
 
 use crate::app::{Settings, Theme, identity};
@@ -45,10 +46,23 @@ fn tint_backdrop(frame: &eframe::Frame, dark: bool) {
 fn tint_backdrop(_: &eframe::Frame, _: bool) {}
 
 pub fn run() -> anyhow::Result<()> {
+    run_window(None)
+}
+pub fn run_preview(
+    found: crate::app::events::Discovered,
+    metrics: std::path::PathBuf,
+) -> anyhow::Result<()> {
+    run_window(Some((found, metrics)))
+}
+fn run_window(
+    preview: Option<(crate::app::events::Discovered, std::path::PathBuf)>,
+) -> anyhow::Result<()> {
     let options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Wgpu,
+        wgpu_options: viewer::gpu::configuration(),
         viewport: ViewportBuilder::default()
             .with_title(identity::PRODUCT_NAME)
-            .with_inner_size([1040.0, 720.0])
+            .with_inner_size([1360.0, 840.0])
             .with_min_inner_size([720.0, 520.0])
             .with_transparent(true)
             .with_icon(Arc::new(IconData {
@@ -62,12 +76,29 @@ pub fn run() -> anyhow::Result<()> {
         identity::PRODUCT_NAME,
         options,
         Box::new(|cc| {
-            let settings = Settings::load();
+            let gpu = cc
+                .wgpu_render_state
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("GPU renderer unavailable"))?;
+            viewer::gpu::install_native(&cc.egui_ctx, gpu);
+            let settings = if preview.is_some() {
+                Settings::default()
+            } else {
+                Settings::load()
+            };
             let backdrop = apply_backdrop(cc, settings.theme == Theme::Dark);
             let mut app = App::new(&cc.egui_ctx, backdrop, settings);
-            app.watch_devices(&cc.egui_ctx);
+            if let Some((found, metrics)) = preview {
+                app.session_mut().adopt(found);
+                app.open(Route::Device(0));
+                app.capture_gpu_metrics(&cc.egui_ctx, metrics);
+            } else {
+                app.watch_devices(&cc.egui_ctx);
+            }
             Ok(Box::new(app))
         }),
     )
     .map_err(|e| anyhow::anyhow!(e.to_string()))
 }
+
+pub(crate) mod device_reveal;

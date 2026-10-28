@@ -1,0 +1,12 @@
+{
+  "adapter": "NVIDIA GeForce RTX 3080",
+  "camera_angles": [
+    -0.24030368030071259,
+    0.900758683681488
+  ],
+  "mesh_uploads": 1,
+  "native_zero_readback": false,
+  "readbacks": 107,
+  "renders": 107,
+  "working_views": 0
+}

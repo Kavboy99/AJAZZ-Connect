@@ -1,0 +1,9 @@
+{
+  "scenes": 1,
+  "widths": [
+    720.0,
+    1040.0,
+    1600.0
+  ],
+  "workspace_input_and_idle_checks": "passed"
+}

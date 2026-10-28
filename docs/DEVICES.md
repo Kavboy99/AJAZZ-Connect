@@ -1,9 +1,6 @@
 # Devices and compatibility
 
-A registry of the devices, from any manufacturer and of any kind, on which development is done, and of
-everything known about their protocols. For now it holds two keyboards; new devices (mice, fans,
-lighting) are added the same way using the scheme in section 4. Update this file after every new
-verification. Statuses: `identified` → `read` → `written by owner` → `confirmed`. Anything not verified
+A registry of explicitly supported devices and hardware revisions, their direct protocol adapters and verification evidence. Current development targets are the two keyboards below. Update this file after every new verification. Statuses: `identified` → `read` → `written by owner` → `confirmed`. Anything not verified
 on the device is marked as an inference, not as a fact.
 
 **Serial numbers are not entered into the repository.** On the AJAZZ website the driver is matched by the
@@ -55,10 +52,7 @@ Interfaces on the wired connection (usage page : usage, Input / Output / Feature
 | **Vendor (feature 520, Report ID 6)** | `FF00:0001` | 8 / 0 / 520 | `b028c012…fbb1258` |
 | Mouse | `0001:0002` | 8 / 0 / 0 | not captured |
 
-Full hashes are in the fixture. The `FF00:0001` channel with a 520-byte Feature report matches, by size,
-the description of the Sinowealth `010C` controller in OpenRGB (Report ID 6). **That is a size match, not
-a confirmation of the command format for this model.** Until it is verified by reading, commands from
-other projects must not be copied.
+Full hashes are in the fixture. The `FF00:0001` channel exposes a 520-byte Feature report with Report ID 6. Report size alone does not establish command compatibility; commands from other controllers must not be copied without protocol verification.
 
 The `3554:FA09` radio receiver: vendor interfaces `FF02:0002` (20 / 20 / 0, SHA256 `63c9063b…9c0406`)
 and `FF04:0002` (feature 8, SHA256 `3c311f5d…a2cbb8`). It shows only the radio channel and says nothing
@@ -96,11 +90,27 @@ What the `by_tech` driver does with it:
   for the password), and the keyboard echoes the request header. The driver requires Report ID 6, the
   same command byte and at least the requested data length.
 - Discovery and `--probe` send only reads: password, configuration block, color table.
-- "Apply" (button press only): reads both blocks, refuses unknown values (effect > 21, brightness > 4,
-  slot > 7, table without `5A A5`), stores a backup of both blocks, sets effect 1 (static) with color
-  slot 0, keeps the brightness (0 becomes 4) and speed, writes the changed blocks once each, waits
-  200 ms and reads both back. Any difference is reported as a read-back mismatch, never retried.
+- "Apply" (button press only): reads both blocks, validates effect settings (speed and brightness
+  0..4, slot 0..7, table signature `5A A5`), backs up both blocks and selects a native program.
+  The editor exposes `LedOpt1..18` (hardware ids 1..18) and Off (`LedOpt19`, hardware id 21).
+  Effect names follow `Text/en/text.xml` `tc_kb_led1..18`; the second LedOpt column is the vendor's
+  animation selector, not the hardware id. Ids 19/20 are not offered. Brightness and speed use
+  `LightHW` / `SpeedHW`; color controls follow the LedOpt flags (no custom color for 3/15/16/17/21).
+  The selected effect's saved slot and palette remain intact unless a custom color explicitly
+  selects slot 0 and replaces its RGB triple. Other effect settings, key mappings and table bytes
+  remain untouched. Only changed blocks are written once; both blocks are read back after 200 ms.
+  A mismatch is reported without retry. The legacy solid action retains its former zero-to-four
+  brightness behavior; the native editor preserves an explicit zero brightness.
 - "Restore" and "From backup" write the saved blocks the same way.
+
+2026-10-28: Native editor integration covered by hardware-free tests (all 19 programs, zero
+brightness, color isolation, invalid input refusal, backup ordering, restore and read-back failure).
+No lighting write was performed on the owner's keyboard as part of this change; physical verification
+is still pending. Wireless lighting remains unavailable.
+The receiver-only UI now exposes the driver's native program preview and brightness controls with
+an explicit USB/wired-mode requirement and disabled Apply. A passive local probe confirmed a
+receiver-only connection when the missing-controls issue was reproduced. Preview metadata never
+performs discovery or changes wireless admission or write support.
 
 **Still unknown** (to be closed by the owner's verification):
 - Whether the firmware echoes exactly what was written (the read-back compares whole blocks).
@@ -147,7 +157,6 @@ Admission matrix. "No" means the adapter rejects the device by VID/PID and inter
 | SONiX AA55 | Yes (per project materials) | No | `0C45`, `FF68:0061`, Input/Output 65, matching `GET_INFO` |
 | SONiX Feature | Possible (experimental) | No | `0C45:8009/800A`, `FF13` Feature 65, `FF68` Output 4097 |
 | HID LampArray | No (no such interface) | No | `0059:0001` and a valid descriptor |
-| OpenRGB SDK | If supported by OpenRGB itself | If supported by OpenRGB | Local server at `127.0.0.1:6742` |
 | BY Tech | No | Yes, experimental (wired) | `FF00:0001`, Feature 520, profile `258A:010C`, password reply `…01 42` or `…01 5E` (single- or tri-mode board), USB only |
 
 Every "No" in the GPWB2401 column was checked against the code and the probe of 2026-10-28 and is locked
@@ -172,6 +181,21 @@ Official catalog for driver matching: https://www.a-jazz.com/en/h-col-159.html (
 six digits of the barcode). For the mechanical version the V1.0 package is already in hand; there is no
 need to download a Windows driver, because the application uses the stock HID drivers.
 
+### AJ159 APEX display support audit (2026-10-28)
+
+The local RAR above was rechecked against its SHA256. Its two nested ZIPs contain firmware
+updaters, not the mouse configuration application. The base's `support_config.json` lists
+`3151:5007`, usage page `FFFF`, usage `0002`, interface 2, and a separate boot identity
+`3151:402E`. Its `tool_config.json` enables `usb`, `rf` and `oled` upgrade paths. These are
+updater metadata, not evidence for safe image-upload commands or a confirmed device identity.
+
+The screen belongs to the charging dock, as described by the
+[official product page](https://ajazzstore.com/products/ajazz-aj159-series).
+There is currently no AJ159 device profile, native mouse adapter or display-upload capability in
+this application. The mouse in `cli/review_state.rs` is a synthetic LampArray fixture for UI review.
+Do not present it as AJ159 hardware support. Display customization requires separate protocol work
+and verification by the owner; firmware-update payloads must never be used as display commands.
+
 ## 4. How to add a device or a verification result
 
 1. `lusorium-studio.exe --probe report.json` (read-only).
@@ -191,3 +215,273 @@ need to download a Windows driver, because the application uses the stock HID dr
 | 2026-10-27 | Static check of the Drv packages | n/a | audit | See `docs/DRV-COMPATIBILITY-AUDIT.md` |
 | n/a | `--probe` over USB | Magnetic Ultra | co-author | Not done |
 | n/a | AA55 color write | Magnetic Ultra | co-author | Not recorded in the repository |
+
+### Battery display (2026-10-28)
+
+The device header exposes AA55 `GET_INFO` byte 17, already parsed and range-checked during discovery,
+as a percentage snapshot. This adds no requests and no polling. It is labelled as the value from the
+last discovery, not live telemetry. Charging-byte semantics are not inferred. Other drivers display
+unavailable battery data. UI/fixture verification is hardware-free; no new physical validation is claimed.
+
+## AJ159 offline placeholder (2026-10-28)
+
+AJAZZ AJ159 currently has an offline catalog tile and model/passport preview only. The user supplied
+`assets/models/aj159.glb` (mouse and dock). No controller, VID/PID, report shape, capabilities or protocol
+has been established. There is no driver, discovery rule, live session or hardware verification for
+this entry. DPI, button assignment and lighting controls are intentionally absent. Enable Developer
+mode and Show all supported devices in Settings to view it.
+
+### Mechanical receiver battery investigation (2026-10-28)
+
+The initial diagnostic snapshot listed the owner's `3554:FA09` receiver but did not list
+`258A:010C`. This was not evidence of the keyboard's active connection mode. The `FF04:0002` collection matched the recorded 8-byte Feature descriptor
+(Report ID 6) exactly. A standalone local Rust diagnostic performed one GET_FEATURE on that
+collection, with no SetFeature, output report, keyboard-input read, or settings write. The receiver
+returned eight bytes. Their meaning is unverified; no battery percentage or charging state can be
+reported from this result. A byte whose numeric value is 100 is not evidence of 100 percent charge.
+Raw results and the diagnostic are retained only in ignored `research/` files.
+
+The exact V1.0 package sets `ShowPower=0` in both `Dev/kb/Wired/KB.ini` and
+`Dev/kb/Thr/KB.ini`. This disables the vendor battery display; it does not prove that the hardware
+cannot expose battery data. Static analysis also found a routine with the error string `GetPower
+failed` at `0x48FEA0` (string reference `0x4900CB`), but it uses 520-byte reports with Report ID 9
+and a SetFeature/GetFeature exchange. That is not the receiver's 8-byte Feature collection, and this
+request was not sent. A verified decoder or a confirmed read-only receiver query is still required.
+
+Correction after the owner's connection clarification: Windows PnP and a repeated live probe both
+confirm the wired `258A:010C` keyboard alongside the receiver. The wired 520-byte Feature collection
+successfully answered the existing family-password and configuration read requests: the tri-mode
+password matched and the configuration parsed successfully. This confirms wired communication, not
+battery telemetry. The earlier receiver result must not be attributed to the wired keyboard or used
+to infer its active connection mode. Why the earlier snapshot omitted the wired device is unknown.
+
+### Wired battery read verification (2026-10-28)
+
+A standalone Rust check admitted only `258A:010C`, `FF00:0001` collections with exact descriptor
+matches to the owner's recorded Feature interfaces, and issued one passive GET_FEATURE per matching
+interface, without SetFeature or output writes. Report ID 5 (6-byte Feature) failed to return a report.
+Report ID 6 (520-byte Feature) returned 136 bytes with the header of the previous configuration read
+(`0x84`, 128 data bytes). This result is configuration data, not a verified battery value. No battery
+percentage was obtained. These observations do not prove that every possible USB battery query is
+unsupported.
+
+Static dispatch verification in the exact V1.0 vendor executable: the `CDevG5KB` vtable at VA
+`0x60FBDC` (file offset `0x20E1DC`) uses slot 8 for the battery getter, pointing to `0x485500`:
+`xor eax, eax; ret 4` (failure stub, no I/O). In the other class's vtable at `0x6105AC`, slot 8 points
+to the real `GetPower` routine at `0x48FEA0` (reference at `0x6105CC`). That routine must not be
+transplanted into the owner's driver. Together with `ShowPower=0`, this establishes that the exact
+vendor class does not implement battery reading; it is not proof of a firmware limitation.
+
+### Wired battery query found and read (2026-10-28)
+
+Supersedes the earlier inability to obtain battery telemetry: a standalone Rust diagnostic successfully
+read the owner's mechanical `GPWB2401` battery query over the wired `258A:010C` connection. The app's
+`by_tech` driver and UI have not yet been changed to issue this query.
+
+Protocol source: [AulaSofwareLinux `src/proto.rs`](https://github.com/leisiji/AulaSofwareLinux/blob/main/src/proto.rs),
+Git blob SHA `0ef893d0bdbbf5ed042128b8ec8dd16476669a27`. It describes the same BYCOMBO4 / `CDevG5KB`
+Feature framing, `GET_POWER=0x87`, parameter 2, two reply bytes, with the first interpreted as the
+battery percentage. This supplied a same-family read candidate, not proof of support on this board;
+the following live exchange established that the owner's firmware answers it.
+
+Admission was restricted to VID/PID `258A:010C`, usage `FF00:0001`, the exact recorded 520-byte Feature
+descriptor (Report ID 6), then a fresh password reply equal to `03 00 00 00 01 5E`. After that check,
+the tool sent exactly one zero-padded 520-byte read request beginning `06 87 02 00 01 00 02 00`.
+The keyboard returned 10 bytes: `06 87 02 00 01 00 02 00 64 10`. The full eight-byte header matched,
+so this was not the stale `0x84` configuration reply seen during passive reading. The battery field
+was 100 percent at this read; the second byte `0x10` remains an uninterpreted status byte. No charging
+flag or measurement accuracy has been verified, and no continuous monitoring was performed.
+
+No configuration, firmware, reset, calibration or bootloader command was sent. The diagnostic allows
+only the fixed identity and battery read tuples, with no retry; its tests reject other opcodes,
+parameters, lengths, truncated replies and stale configuration headers. Its two tests and clippy with
+warnings denied passed. Source and local raw results are retained in ignored `research/drv-audit/`.
+
+Additional research clarified the earlier static result: the real native `GetPower` routine belongs
+to `CDevG5MS` (mouse), not `CDevG5KB` (keyboard). The keyboard's vendor getter remains a stub, but the
+live firmware supports the read anyway. Public Womier L65 notes also describe battery access on
+related boards; their radio `0x4A` must not be assumed equivalent here: in this exact vendor package
+`CDev3632::GetOnBoard` at `0x486140` uses `0x4A` for another purpose. No radio query was sent.
+
+### Radio battery read verification (2026-10-28)
+
+After the owner disconnected the USB cable and selected radio, Windows PnP listed `3554:FA09` and
+no `258A:010C`. A standalone Rust diagnostic required the wired device to be absent, exactly one
+`3554:FA09` vendor collection `FF02:0002`, and an exact match to its recorded 20-byte Input/Output
+descriptor (Report ID `0x13`).
+
+Static analysis of this exact vendor executable confirms the read framing in `CDev3632` at
+`0x485CC0`: Report ID `0x13`, command, one packet, index zero, operation zero, zero payload,
+additive checksum. Its `GetOnBoard` method at `0x486140` issues read `0x4A`, with no settings write.
+The name does not itself establish battery semantics. The independent public implementation
+[Womier L65 `linux/l65ctl.py`](https://github.com/deepan-alve/womier-l65-linux/blob/main/linux/l65ctl.py)
+interprets reply byte 5 as battery percentage; byte 6 is status with undecoded bits. This is a
+same-radio-protocol reference, not a claim that the two boards are interchangeable.
+
+The tool sent exactly one request (no retry):
+`13 4A 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 5E`.
+The reply was:
+`13 4A 01 00 02 4E 01 00 00 00 00 00 00 00 00 00 00 00 00 AF`.
+Report ID, command, single-packet count/index, declared two-byte payload and checksum matched.
+The battery field was 78 percent (`0x4E`), with raw status `0x01`. Charging semantics remain unknown.
+No keyboard-input collections were read; no settings, firmware or bootloader operation occurred.
+Two codec tests and clippy with warnings denied passed for this local diagnostic.
+
+A subsequent passive read of the receiver's separate `FF04:0002` Feature report still returned the
+earlier opaque values containing `0x64`; they did not track the radio battery reply and must not be
+used as battery telemetry. Raw results and diagnostic sources are retained in ignored
+`research/drv-audit/`.
+
+The preceding wired query returned `64 10` (a percentage-like value of 100), whereas this radio
+query returned `4E 01` (78). Therefore the earlier statement that the USB value establishes the
+physical battery charge is too strong. Both transport replies are verified, but their discrepancy
+is unresolved: USB could expose a placeholder, stale value or different state. A controlled
+cross-transport comparison and independent on-device/OS indication are still needed before treating
+USB data as an accurate battery measurement. Neither query is integrated into the app yet.
+
+### USB cable attached while the switch remains on radio (2026-10-28)
+
+The owner reported attaching the USB cable without changing the radio-mode switch. A fresh wired
+read diagnostic found no matching `258A:010C` collection and sent no request. Windows PnP independently
+listed the keyboard receiver `3554:FA09`, with no wired `258A:010C` device present.
+
+One radio `0x4A` read returned
+`13 4A 01 00 02 5A 10 00 00 00 00 00 00 00 00 00 00 00 00 CA`.
+The frame and additive checksum validated: percentage field 90 (`0x5A`), raw status `0x10`.
+Thus the radio query can report a value below 100 even while the cable is attached. The status
+changed from the earlier cable-disconnected radio sample (`0x01`) to `0x10`, which is consistent
+with a power-state dependency but does not establish the charging-bit definition. These samples
+were taken at different times; the rise from 78 to 90 is not a controlled measurement of charge rate.
+This test cannot isolate the earlier USB 100 reading because the USB data endpoint is absent in
+this switch position. A comparison after switching to USB mode remains necessary. No settings
+or firmware writes were performed. Local outputs are retained in ignored `research/drv-audit/`.
+
+### USB switch follow-up after radio reported 90 (2026-10-28)
+
+The owner then switched to USB mode with the cable still attached. Windows PnP now listed wired
+`258A:010C` as well as the physically connected receiver. A fresh exact-profile password read
+matched `03 00 00 00 01 5E`; the single battery query `0x87`, parameter 2 returned
+`06 87 02 00 01 00 02 00 5C 10`. The full request header matched. The percentage field was 92
+(`0x5C`) with raw status `0x10`, versus the preceding radio sample of 90 (`5A 10`).
+
+This establishes that the owner's wired battery reply is not permanently fixed at 100 when powered
+by USB. The two recent samples are close but not simultaneous; their difference does not establish
+charging rate, measurement accuracy, or exact cross-transport equivalence. The reason for the earlier
+100-versus-78 discrepancy remains unresolved. Both transports can return a percentage-like value,
+and `0x10` status is observed with the cable attached in either switch position. No settings or
+firmware writes were performed. The standalone output is retained in ignored `research/drv-audit/`.
+
+### Radio follow-up after removing the cable (2026-10-28)
+
+The owner reported removing the cable and returning to radio. Windows PnP listed only `3554:FA09`
+for this keyboard; wired `258A:010C` was absent. One radio `0x4A` query returned
+`13 4A 01 00 02 4D 01 00 00 00 00 00 00 00 00 00 00 00 AE`.
+The frame and checksum validated. The reported percentage field was 77 (`0x4D`), status `0x01`.
+
+Across the owner's connection changes, both cable-disconnected radio samples returned status
+`0x01`; cable-attached radio and USB samples returned `0x10`. This supports interpreting these
+observed whole-byte values as battery-powered versus externally powered states for this unit.
+It does not distinguish active charging from full-battery external power, and does not establish
+individual bit meanings or all possible status values. With the cable physically disconnected,
+this observation is consistent with not charging.
+
+The reported percentage changed from USB 92 to cable-disconnected radio 77. The earlier explanation
+that the close 90/92 readings demonstrated comparable charge was premature: connection or power
+state may affect the reported estimate. These are verified protocol fields, not calibrated physical
+state-of-charge measurements. No discharge rate should be inferred from this sequence. No settings
+or firmware writes occurred; raw local results remain in ignored `research/drv-audit/`.
+
+### Battery support integrated into the application (2026-10-28)
+
+`by_tech` now exposes a discovery-time battery snapshot in the device header. Enable experimental
+drivers in Settings, then refresh device discovery to obtain a new snapshot. There is no polling,
+keep-alive, persistent HID handle or battery worker at idle. The existing Refresh action is the
+explicit way to update a value without reconnecting.
+
+USB sends one `0x87` / parameter 2 read only after the known tri-mode password and release `0100`
+have been confirmed; a battery failure leaves the existing lighting device usable. The battery parser
+rejects percentages above 100, short payloads and mismatched full request headers. Single-mode and
+unverified releases receive no new battery command.
+
+Radio admission requires profile `3554:FA09`, release `2008`, `FF02:0002`, 20-byte Input/Output,
+no Feature report, and the exact captured descriptor. One payload-free `0x4A` read is followed by a
+bounded receive window (under three seconds, no resend). A valid reply must carry Report ID `13`,
+command `4A`, one packet at index zero, exactly two payload bytes and a valid additive checksum.
+The resulting keyboard has no lighting capability or settings writes. The separate opaque Feature
+report is never used for battery data. Radio discovery is skipped only after a wired device has
+successfully confirmed its identity and configuration. A failed wired candidate falls back to radio;
+a confirmed USB board and its attached receiver still produce one keyboard tile.
+
+Radio visibility is independent of battery availability after the exact receiver descriptor passes.
+A timeout or malformed battery reply keeps the receiver tile, reports the error and omits an unknown
+percentage. The existing battery refresh can recover on that same device without another descriptor
+read or rediscovery. Foreign descriptors are still rejected before any output request.
+
+2026-10-28 radio visibility regression: hardware-free tests cover timeout retention, malformed
+telemetry, recovery, failed USB confirmation fallback and confirmed USB precedence. The rebuilt
+release's read-only discovery found the owner's `3554:FA09` receiver, reported 76 percent on battery,
+and recorded no errors, settings writes or firmware writes. A successful read at verification time
+does not establish which transient condition caused the owner's earlier missing tile.
+
+The core carries a generic power-source fact. Status `01` displays battery operation / not charging;
+`10` displays external power with charging unconfirmed. Other values display unknown power status.
+Diagnostics preserve the raw status and explicitly leave charging unknown. Displayed percentages
+remain device estimates, with the connection-dependent discrepancy described above unresolved.
+
+`tests/fixtures/by-tech-battery.json` contains the actual USB and radio reply bytes captured during
+this investigation. `probe-by-tech-gpwb2401-radio.json` adds the sanitized receiver descriptor to the
+cross-family admission suite. Hardware-free tests cover corruption, range, stale headers, timeout,
+foreign mouse/headset identities and descriptors, one-request behavior, and wired preference.
+The integrated release was run with `--lighting-probe by_tech`: it discovered one radio keyboard with
+75 percent, battery power, no writable capability, no errors and no settings or firmware writes.
+
+Integration validation: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`,
+60 unit tests plus three admission tests, and the release build passed. Existing TCP and temporary
+migration tests required execution outside the sandbox. The standard `--review` completed; device
+headers at 720, 1040 and 1600 px were visually inspected with the long external-power status visible.
+
+### Adaptive live battery updates (2026-10-28)
+
+At the owner's explicit request, the earlier no-polling battery snapshot policy is superseded for
+battery-capable devices. `core::Battery` refreshes an already identified device without discovery.
+The real window requests one refresh every five seconds while not minimized, every five minutes
+while minimized, and immediately on restoration. Failed reads back off to one minute when visible.
+No background pool, permanent sleeping worker, idle loop, retained HID handle, or repeated descriptor
+read is added. Only a deadline wake and a short-lived read worker run at each interval. Discovery and
+lighting operations exclude concurrent telemetry. Failed reads clear the displayed stale percentage.
+
+USB refresh rechecks the board password before the battery read, without reading lighting settings.
+Radio refresh uses its already descriptor-validated endpoint and exactly one `0x4A` read. Neither
+transport writes settings. The previously observed connection-dependent percentage variation remains
+unresolved; these are device estimates rather than calibrated state-of-charge measurements.
+
+The header now has a single battery row: proportional spring-animated fill in the existing battery
+icon, a plug badge under external power, percentage and compact status. The UI interprets external
+power below 100 percent as charging and 100 percent as charged, as requested by the owner. This is an
+operational interpretation of the observed power state; a distinct hardware charging-current flag
+has not been decoded. Unknown status does not imply charging. The discovery-time label was removed.
+
+Live-telemetry validation: 63 unit tests and three cross-family admission tests passed, including
+visibility deadline/restore/backoff behavior, exclusion of overlapping reads, stale-data removal,
+and radio refresh without repeated descriptor validation. Fmt, clippy with warnings denied and the
+release build passed. The final single-row indicator was visually checked with `--review` at
+720, 1040 and 1600 px. No runtime CPU benchmark or multi-minute minimized-window hardware soak test
+is claimed; the low wake rate is enforced by the tested scheduling policy.
+
+### Per-device polling presets (2026-10-28)
+
+The app now persists Automatic / Responsive / Eco telemetry modes in Settings. Automatic uses 5 s
+for the open device card, 60 s elsewhere in the visible window, 5 min in background on battery and
+1 min in background under external power below full charge. Each device owns its deadline, failure
+backoff, last successful reading and timestamp. Only one read is dispatched at a time; completion
+returns that device immediately rather than waiting for all devices. Failures do not alter another
+unit's schedule. Hidden frames skip shell/model/page construction. Restore refreshes are staggered.
+This supplies scheduling and freshness data for the planned tray battery display; no tray icons or
+Windows notification feature is claimed. See `docs/ARCHITECTURE.md` for the complete preset table.
+
+Validation of per-device presets: 65 unit tests and three admission tests passed, including legacy
+settings migration/defaults, mode persistence, scope/power intervals, independent failure deadlines,
+staggered restoration, one in-flight job, retained sample freshness and progression to another device
+after a failed read. Fmt, clippy with warnings denied, release build and standard `--review` passed.
+The settings selector was visually inspected at 720, 1040 and 1600 px. These checks do not constitute
+a physical multi-device power benchmark or a native tray integration test.

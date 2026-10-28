@@ -1,10 +1,16 @@
-//! BY Tech (BYCOMBO4) keyboards on the `258A:010C` platform, wired connection only. The protocol
+//! BY Tech (BYCOMBO4) keyboards on the `258A:010C` platform, with a separate read-only radio battery path. The protocol
 //! is restored by static analysis of the vendor package; it is experimental until the owner of
 //! the keyboard confirms a write (`docs/DEVICES.md`, section 1.1). Settings persist in the keyboard.
 
 mod backup;
+mod battery;
+#[cfg(test)]
+mod battery_tests;
 pub mod codec;
 mod driver;
+mod lighting;
+mod radio;
+mod radio_codec;
 pub mod state;
 #[cfg(test)]
 mod tests;
@@ -20,7 +26,8 @@ pub const ID: &str = "by_tech";
 /// `FF00`, usage 1, a 520-byte Feature report. The keyboard's other `FF00` collections (input 4,
 /// feature 6) belong to other commands and are never opened.
 fn admits(e: &Endpoint) -> bool {
-    e.usage_page == 0xff00
+    e.vid == 0x258a
+        && e.usage_page == 0xff00
         && e.usage == 1
         && e.has_feature(codec::REPORT_BYTES as u16)
         && profiles::find(e, ID).is_some()

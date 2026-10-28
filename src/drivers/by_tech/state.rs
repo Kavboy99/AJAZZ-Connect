@@ -1,5 +1,5 @@
 //! The two lighting blocks the keyboard keeps in its memory, as `OemDrv.exe` builds them
-//! (`CDevG5KB`, `docs/DEVICES.md`, section 1.1). Only the bytes of the static effect are changed;
+//! (`CDevG5KB`, `docs/DEVICES.md`, section 1.1). Only the selected effect's fields are changed;
 //! everything else is written back exactly as it was read.
 
 use crate::core::DriverError;
@@ -43,6 +43,12 @@ impl Config {
         if config.effect() > LAST_EFFECT || brightness > MAX_BRIGHTNESS || slot > RANDOM_SLOT {
             return Err(DriverError::protocol("unknown lighting configuration"));
         }
+        for effect in 1..=18 {
+            let (speed, brightness, slot) = config.settings(effect);
+            if speed > 4 || brightness > MAX_BRIGHTNESS || slot > RANDOM_SLOT {
+                return Err(DriverError::protocol("unknown effect settings"));
+            }
+        }
         Ok(config)
     }
 
@@ -57,6 +63,33 @@ impl Config {
     fn static_settings(&self) -> (u8, u8) {
         let packed = self.0[SETTINGS + 2 * usize::from(STATIC_EFFECT) + 1];
         (packed >> 4, packed & 0x0f)
+    }
+
+    pub(super) fn settings(&self, effect: u8) -> (u8, u8, u8) {
+        let at = SETTINGS + 2 * usize::from(effect);
+        (self.0[at], self.0[at + 1] >> 4, self.0[at + 1] & 0x0f)
+    }
+
+    pub(super) fn with_program(
+        &self,
+        s: crate::core::LightingSettings,
+        brightness: bool,
+        speed: bool,
+    ) -> Self {
+        let mut block = self.0;
+        block[GAME_MODE] = 0;
+        block[EFFECT] = s.preset;
+        let at = SETTINGS + 2 * usize::from(s.preset);
+        if speed {
+            block[at] = s.speed;
+        }
+        if brightness {
+            block[at + 1] = s.brightness << 4 | (block[at + 1] & 0x0f);
+        }
+        if s.color.is_some() {
+            block[at + 1] &= 0xf0;
+        }
+        Self(block)
     }
 
     /// The static effect in slot 0. A brightness of zero would hide the color, so it becomes the
@@ -103,6 +136,13 @@ impl ColorTable {
     pub fn with_static_color(&self, rgb: [u8; 3]) -> Self {
         let mut table = self.0;
         let at = Self::static_slot();
+        table[at..at + 3].copy_from_slice(&rgb);
+        Self(table)
+    }
+
+    pub(super) fn with_effect_color(&self, effect: u8, rgb: [u8; 3]) -> Self {
+        let mut table = self.0;
+        let at = ENTRY_BYTES * usize::from(effect);
         table[at..at + 3].copy_from_slice(&rgb);
         Self(table)
     }

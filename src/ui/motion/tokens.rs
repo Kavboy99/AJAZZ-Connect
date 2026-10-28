@@ -18,6 +18,11 @@ pub const PAGE: SpringSpec = SpringSpec {
     period: 0.40,
     damping: 0.95,
 };
+/// Shared device model during opening: a restrained overshoot (about 0.6%).
+pub const DEVICE_REVEAL: SpringSpec = SpringSpec {
+    period: 0.52,
+    damping: 0.85,
+};
 /// Sliders and markers after a gesture, ≈ 1.5% overshoot.
 pub const RELEASE: SpringSpec = SpringSpec {
     period: 0.32,

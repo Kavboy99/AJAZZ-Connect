@@ -214,9 +214,66 @@ a fixed page width, nothing stops in the middle of a wide window, nothing overfl
    breakpoints are decided on the width the content *will* have when the pane settles
    (`settled_width`), so columns switch once, at the start. Labels of the pane fade with its width and
    slide under its edge instead of disappearing at a threshold.
-5. **Check every page at three widths**: the minimum window (720 px), the default (1040 px) and a wide
+5. **Check every page at three widths**: the minimum window (720 px), the intermediate (1040 px) and a wide
    monitor (1600 px). `--review DIR` renders each scene at all three; the result is attached to the
    change description.
+
+### 5.2 Device workspace
+
+The initial window is 1360 x 840 logical pixels. Device pages reserve the available viewport instead of
+joining the page scroll. Opening a device temporarily compacts navigation to 48 px; returning restores
+the previous list preference. A large model leads, followed by identity, battery, compact USB/firmware
+facts and capability actions on the trailing side. There is no duplicate About card.
+
+Lighting and encoder actions open a bottom island with choices: title, visual sample and a
+Settings button. Choosing a mode centers the enlarged model, removes identity and targets the camera
+at the relevant part. Settings restores a trailing inspector and moves the model aside. Camera pose,
+zoom, focus, island travel and panel width use interruptible springs. Reduced motion drops spatial
+travel through the shared motion system. Selection also has a check, border and title.
+
+`STUDIO_PANEL` is 300 px, capped at 43% of available width. Below `SECTION_COLUMNS` the inspector
+stacks; only its contents can scroll. Below `STUDIO_SHORT_HEIGHT` the island is 184 px instead of
+220 px, including its dedicated close-button header. The page never grows to fit editor contents.
+The top Back action always returns to the device list. The island's close button returns to the device
+overview. Escape unwinds inspector, editor and device. The settings action is inside each card at its
+bottom trailing corner; the title stays inside the same card above the sample.
+
+Visual bindings in `assets/models/stages.toml` associate asset node names with key input and encoder
+focus; they confer no hardware support. Solid/Wave/Reactive are model previews. Wave runs for 1.6 s
+after selection or Demonstration and stops; held keys and short release tails also stop when settled.
+Input comes only from the focused window and is suppressed during text entry. Encoder assignments are
+local placeholders. Hardware color writes remain a separate explicit action for supported live drivers.
+
+Drivers with native lighting programs replace the three preview choices with a horizontally scrollable
+catalog supplied by the lighting capability. The inspector exposes only supported brightness, speed
+and custom-color controls. Preset selection and sliders edit a local draft; Apply is always explicit.
+Native model demonstrations are labeled illustrative, since firmware owns the actual animation.
+Brightness scales emission through the shared spring system without dimming the hue rings or plastic.
+When a driver supplies static preview metadata but the connection has no lighting capability, keep
+the same program catalog and controls visible with illustrative values, an explicit connection hint
+and disabled Apply. Offline catalog pages use this metadata too and never create a device session.
+
+### 5.3 LED color and preview fidelity
+
+The lighting picker contains concentric hue rings: one for Solid/Reactive and three for Wave. Every
+ring is independent and separated by an 8 px inset. Its marker follows a release spring; the outlined
+center previews the active color. Keyboard Left/Right changes hue and Up/Down selects a ring. This is
+LED color selection, so saturation and value stay at 100%; black and dim colors are not choices.
+Hue and radial edge coverage are evaluated per texture pixel, at native display density with a 2x
+minimum. Both edges must stay smooth; the wheel texture is cached independently of the moving marker.
+At short heights the entire wheel scales to the available inspector height; duplicate headings are
+omitted. Hardware actions stay in an explicitly labeled collapsed section below the picker.
+
+Device textures retain their native resolution up to 4096 px. The keyboard's 1536 px atlas must never
+be halved for a workspace; tiles reuse the same parsed asset. Texture coordinates are interpolated
+with perspective correction. Keycap plastic keeps its base color: emission is restricted to legend
+apertures and under-cap socket geometry, with distance/normal-dependent local diffuse spill. Bloom
+uses depth-tested visible emission only, so bright white plastic does not glow. This approximates a
+backlit material; it is not a claim of ray-traced lighting or measured hardware behavior.
+The GPU stage uses roughness/metallic shading, a filtered shadow map, contact shading and restrained
+HDR bloom, with 4x MSAA and mipmapped anisotropic texture sampling. Studio lighting must reveal cap
+sidewalls and gaps without bleaching their tops. Pointer tracking remains active while editing, at
+28% of the overview's angular range, so the close camera remains stable and responsive.
 
 ## 6. Materials: acrylic
 
@@ -312,10 +369,92 @@ device and every kind (keyboards, mice, lighting, fans, ...); only the model ins
 - **Where models come from.** A model is data: a profile names it (`visual = "..."`,
   `docs/ADDING-A-DRIVER.md`) and the file lives in `assets/models/`. The interface never picks a model
   by brand or driver.
-- **Cost.** The model is drawn by the software rasterizer in `ui/viewer` into a texture only when its
-  pose changes: a half-resolution draft while it moves, one 2×2-supersampled frame when it stops. An
-  idle tile is one textured rectangle. With Windows animations off the model does not turn or rise;
-  only the glow fades in.
+- **Cost.** The wgpu stage draws only when pose, size or lighting changes, at full resolution with
+  4x MSAA. The interface samples the GPU texture directly; there is no native-frame CPU readback.
+  Static meshes and mipmapped atlases upload once per visual. HDR, MSAA, shadow, depth and bloom
+  work textures are released at rest or when hidden; the final image remains cached. An idle tile is
+  one textured rectangle. With Windows animations off the model does not turn or rise; only the glow
+  fades in. Bounded optical bloom belongs to the 3D stage and does not blur the interface backdrop.
+
+### 8.2 Device detail header
+
+The tile expands into the full content area and the navigation pane collapses to its compact form.
+The page uses one shared interactive model stage, with the same pose springs and texture identity
+as the source tile. The enlarged model occupies the main workspace; name, driver, connection,
+battery and actions share the trailing panel. The technical passport does not duplicate these fields
+below the stage. Editing replaces this panel and introduces the bottom island as described in 5.2.
+
+Battery data comes from driver battery capabilities and refreshes on adaptive deadlines while the real window runs. Display one row with proportional icon fill, percentage and power/charging status; omit discovery-time wording.
+Missing data is explicit; the interface does not infer a percentage or a connection transport.
+
+### 8.3 Interactive model quality standard
+
+This is the product standard for all device models, not a keyboard-specific demonstration. New assets,
+new device editors and renderer changes must preserve it. Sections 5.2–5.3 define the surrounding
+workspace and picker. Implementation and measured costs live in `ARCHITECTURE.md` and
+`GPU-PERFORMANCE.md`; historical measurements are not universal performance guarantees.
+
+**Composition and camera.** The device is the main subject and must remain large and readable within
+the available viewport. It must not force page scrolling. Keep identity and actions in the trailing
+panel in overview. Opening a visual editor removes identity, centers/enlarges the model and smoothly
+focuses the relevant physical region. Opening settings moves the model aside and uses that panel for
+the inspector. Closing the island restores overview; the top Back button still returns to the list.
+
+| State | Required model behavior |
+| --- | --- |
+| Overview | Large three-quarter view with visible thickness; full restrained pointer tracking |
+| Lighting editor | Closer view of luminous surfaces, with readable legends and visible gaps/sidewalls |
+| Encoder or other part editor | Focus and zoom on the bound physical part; retain enough context to recognize it |
+| Settings inspector | Preserve the selected effect and camera focus while making space for controls |
+| Close or interrupted transition | Return or reverse continuously, preserving spring velocity |
+
+Zoom must not disable pointer tracking: use 28% of the overview's angular range while editing, with
+the same tilt springs. Do not flatten the camera into an orthographic-looking top view that hides
+thickness. Current keyboard reference values are lighting zoom 1.12/pitch 0.88 rad and encoder zoom
+2.2/pitch 0.85 rad. These are a reference for this asset, not mandatory framing for differently shaped
+devices; bind focus and framing through visual metadata rather than manufacturer checks. Camera,
+focus, zoom, island and panel transitions use interruptible springs and respect reduced motion.
+
+**Materials and detail.** Judge quality at the largest supported editor view, not only on a small
+tile. Legends must be correct, oriented correctly, sharp and readable. Preserve native source detail;
+do not halve textures or lower rendering resolution during camera motion. Enlarging a blurry bitmap
+does not create detail. For bound key surfaces, the reference implementation uses a separate 2048 px
+atlas with 192 px cells and outline-rasterized legends, with a matching emission mask. Other assets
+may use suitably detailed authored textures or equivalent outline rendering. Keep source provenance;
+do not invent product markings. Missing system fonts may retain the source asset as a fallback, but
+that fallback is not evidence that a new asset passes close-up quality review.
+
+Plastic albedo, surface roughness and metallic parts must respond independently to lighting. Replace
+baked photographic highlights on relit surfaces rather than stacking a second lighting model over
+them. Preserve the device's colors, bevels and shape. Exposure must retain light-plastic detail and
+color differences instead of washing everything toward white. Dark crevices, contact shading,
+filtered shadows and controlled reflections must make depth readable without crushing the image.
+
+**Lighting effects.** Emit light from bound sockets, gaps, translucent legends and other genuinely
+luminous geometry. Preserve opaque material colors; a whole-texture recolor is not a lighting effect.
+Use local spill and restrained HDR bloom from visible emission only. White plastic must not become a
+glowing source. The reference stage uses roughness/metallic shading, shadow mapping, contact shading,
+4x MSAA and mipmapped anisotropic sampling. Equivalent replacements must preserve or improve the
+visible result. Do not describe this approximation as measured hardware output or ray tracing.
+Mode/color changes and focused-window key presses must affect the corresponding model parts.
+Maintain the full-brightness, smooth concentric LED hue rings specified in 5.3.
+
+**Cost and separation from hardware.** Use the GPU and sample native output textures directly without
+per-frame CPU readback. Upload static geometry/materials and build legend atlases once per visual.
+Cache the resolved image; render again only for changed pose, size or effects. After springs, key
+release tails and finite effect demonstrations settle, stop requesting animation frames and submitting
+model work. Release large HDR/MSAA/depth/shadow/bloom work targets at rest or when hidden. No permanent
+animation threads, polling or autonomous demonstrations. Visual bindings grant no hardware support;
+preview changes never write to a device. Hardware writes remain separate explicit actions.
+
+**Acceptance.** Review overview, lighting, part zoom and settings at 720/1040/1600 px, including the
+minimum height, both themes, pointer movement while zoomed, close/reversal and reactive key feedback.
+Inspect a large screenshot for readable undistorted legends, smooth edges, preserved material color,
+visible sidewall depth and light confined to its sources. Verify idle repaint/submission counters stop
+and temporary targets are released. Record active-frame and idle resource measurements when rendering
+cost changes, distinguishing offline readback timings from native GPU presentation. Codec tests and
+screenshots do not establish physical-device behavior. Reject regressions even when tile-sized images
+look acceptable.
 
 ### Application shell and brand neutrality
 
@@ -373,6 +512,7 @@ from them: `ω = 2π/T`, `k = ω²`, `c = 2ζω`.
 | `spring.fast` | 0.18 | 1.00 | ≈ 0.14 s | Hover, press, focus, row highlight, an element's color change |
 | `spring.standard` | 0.30 | 1.00 | ≈ 0.23 s | Switches, item selection, expanding a group, popups |
 | `spring.page` | 0.40 | 0.95 | ≈ 0.30 s | Transitions between pages and windows |
+| `spring.device_reveal` | 0.52 | 0.85 | Overshoot about 0.6% | Only the shared model during device opening; return uses `spring.page` |
 | `spring.release` | 0.32 | 0.80 | ≈ 0.3 s, overshoot ≈ 1.5% | Sliders, the color-picker marker, return after a gesture |
 | `spring.tilt` | 0.50 | 0.90 | ≈ 0.4 s, overshoot ≈ 0.2% | A device model turning toward the pointer (8.1) |
 
@@ -418,9 +558,22 @@ meaning, as in WinUI 3:
 | Meaning of the transition | Style | Motion |
 | --- | --- | --- |
 | Peer pages (navigation items) | Entrance (`Entrance`) | The new page fades in and rises 16–24 px from below; the old one fades out in place |
-| Going deeper (open details, a report) | Drill In (`Drill In`) | New page: scale 0.96 → 1 and opacity; the old one leaves fading |
+| Device tile to device page | Shared surface | Tile bounds expand to the content bounds; one model stage travels to the header; text and settings reveal late in the motion |
+| Going deeper (other details, a report) | Drill In (`Drill In`) | New page: scale 0.96 → 1 and opacity; the old one leaves fading |
 | Going back | Reverse drill in | Mirrors the forward one |
 | Window/dialog | Scale + opacity | Section 9.3 |
+
+Device navigation uses `spring.page` for the surface and a separate `spring.device_reveal` for the
+model stage during opening. The latter retains its small overshoot; its progress is not clamped to one.
+Return uses `spring.page` for both. The selected tile retains its chrome and labels but does not draw
+a second model. The source list participates only during travel and is
+removed from rendering when the page settles. Escape, Back and the Devices navigation item retarget
+both springs, preserving their positions and velocities. The source list uses explicit dimming
+(`motion::DEVICE_LIST_DIM`) instead of disabled-state opacity, returning continuously to normal
+brightness. During the last `motion::DEVICE_TILE_HANDOFF` fraction of travel, the surface opacity
+follows smoothstep to expose the tile labels before the final handoff. Detail scrollbars are hidden during travel to avoid a
+moving clipping edge becoming a spurious scrollbar. With Windows animation disabled, geometry stays
+at its destination and only the reduced opacity transition remains.
 
 Rules:
 1. The old page leaves faster than the new one arrives; at some moment both are visible, but the overlap

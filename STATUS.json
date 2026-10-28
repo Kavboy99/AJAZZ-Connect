@@ -1,7 +1,31 @@
 {
   "application": "Lusorium Studio",
   "version": "0.3.0",
-  "stage": "by_tech_driver_and_device_tiles",
+  "device_control_direction": "Proprietary project-owned direct protocol adapters for explicitly supported devices and hardware revisions; no external RGB service in the product architecture. Legacy service integration code removal is pending.",
+  "stage": "gpu_workspace_and_outline_key_legends",
+  "radio_discovery_validation": {
+    "rust_tests_passed": 86,
+    "fmt_clippy_release": "passed",
+    "regressions": "Confirmed receiver retained on battery timeout or malformed telemetry; refresh recovers without descriptor re-read. Failed wired confirmation falls back to radio; successful wired confirmation still prevents a duplicate receiver tile.",
+    "live_read_only_discovery": "AK820 MAX 3554:FA09 found, 76 percent, battery power, no errors or settings/firmware writes",
+    "report": "verification/radio-discovery-fixed.json"
+  },
+  "native_lighting_editor": "Wired BY Tech: 18 native effects plus Off, saved per-effect settings, brightness 0..4, supported speed/custom color, scrollable catalog. Explicit Apply only; backup, changed-block write and full read-back. No hardware writes performed for this integration; owner verification pending. Other drivers retain existing solid-color support.",
+  "native_lighting_validation": {
+    "rust_tests_passed": 83,
+    "fmt_clippy_release": "passed",
+    "workspace_review_scenes": 20,
+    "workspace_review_widths": [720, 1040, 1600],
+    "wheel_scroll_and_idle_checks": "passed",
+    "report": "verification/lighting-final/complete.json",
+    "missing_controls_regression": "Passed via actual offline catalog route and a live device without lighting capability at 720/1040/1600 px. Driver-supplied static previews expose native programs and brightness; Apply disabled with USB/wired-mode hint until writable lighting is present.",
+    "physical_lighting_write": "not performed; pending owner verification"
+  },
+  "keycap_materials": "Bound key surfaces replace baked source photography with a 2048 px atlas, 192 px cells and system-font outline legends; emission uses matching glyph coverage; original plastic colors sampled once. Flat keycap tops retain row slope; reference status decal beside Enter removed. Glyph outlines rasterize at final horizontal scale, avoiding pixel overwrites on wide keys. Case textures retained; absent system fonts retain original surfaces. Reduced exposure and editing pitch preserve depth. GPU memory metrics below predate this atlas.",
+  "developer_previews": "Offline catalog grouped by explicit model metadata with per-model driver previews and model/passport pages; full-resolution wgpu/Direct3D 12 model rendering with 4x MSAA during motion",
+  "offline_placeholders": {
+    "AJ159": "Mouse and dock 3D preview only; no driver, hardware matching or device operations"
+  },
   "target_marking": "GPWB2401",
   "target_description": "Mechanical AK820 MAX of the repository owner; BY Tech platform",
   "keyboards": {
@@ -12,8 +36,9 @@
       "usb_wireless_receiver": "3554:FA09",
       "usb_identity_verified": true,
       "verified_on": "2026-10-28",
-      "native_driver": "by_tech (experimental, wired)",
+      "native_driver": "by_tech (experimental: wired lighting and battery; radio battery only)",
       "lighting_control": "implemented from static analysis of OemDrv.exe V1.0; read path verified by --probe on 2026-10-28 (tri-mode password, valid configuration block); writes not yet verified",
+      "battery_read": "Standalone reads verified on 2026-10-28: USB 0x87/2 returned 64 10 then 5C 10 (92 percent); radio 0x4A returned 4E 01 then 5A 10 (90 percent with cable). USB is not fixed at 100; cable-disconnected radio later returned 4D 01 (77 percent). Status 01 correlates with cable absent and 10 with cable present; active charging vs full external power unresolved. Percentage varies with connection/power state; accuracy unconfirmed; integrated into driver/UI with adaptive live telemetry",
       "protocol_source": "docs/DEVICES.md, section 1.1.1"
     },
     "ULTRARSW": {
@@ -30,11 +55,12 @@
     "sonix_aa55": "stable",
     "sonix_feature": "experimental, off by default",
     "hid_lamparray": "stable",
-    "openrgb": "stable",
     "by_tech": "experimental, off by default"
   },
   "settings_writes": "explicit Apply button only; sonix_aa55, sonix_feature and by_tech persist lighting settings",
-  "device_tiles": "square tiles with a 3D model (docs/DESIGN.md 8.1); CPU-rendered only while the pose changes",
+  "device_page_transition": "Shared tile-to-page surface with continuous list dimming and label handoff; separate reversible model spring with about 0.6% opening overshoot; responsive identity header; reduced-motion crossfade",
+  "battery_display": "Per-device battery deadlines and independent backoff; saved Automatic/Responsive/Eco presets; Automatic 5s open card, 60s other visible devices, 300s background on battery, 60s background charging; one telemetry job in flight; retained sample/timestamp for future tray; hidden frames skip UI construction; native tray icons not yet implemented",
+  "device_tiles": "square tiles with a 3D model (docs/DESIGN.md 8.1); GPU-rendered only when pose, lighting or size changes; native textures sampled directly without CPU readback",
   "firmware_analysis_in_ui": false,
   "startup_device_access": "read-only automatic search at startup and on HID arrival/removal (OS notification, no polling)",
   "hid_handle_lifetime": "per operation",
@@ -42,10 +68,37 @@
   "flash_implementation_exposed": false,
   "boot_or_erase_commands_exposed": false,
   "new_backends_physically_tested_locally": false,
-  "idle_measurement_2026_10_28": { "working_set_mb": 69, "cpu_ms_per_5s": 0 },
-  "idle_measurement_with_tiles_2026_10_28": { "working_set_mb_without_model": 86, "working_set_mb_with_model": 94, "cpu_ms_per_5s": 0 },
+  "idle_measurement_2026_10_28": {
+    "backend": "historical OpenGL/CPU revision",
+    "working_set_mb": 69,
+    "cpu_ms_per_5s": 0
+  },
+  "idle_measurement_with_tiles_2026_10_28": {
+    "backend": "historical OpenGL/CPU revision",
+    "working_set_mb_without_model": 86,
+    "working_set_mb_with_model": 94,
+    "cpu_ms_per_5s": 0
+  },
   "third_party_hardware_evidence": "OpenKey author reports AK820 MAX PLUS 0C45:8009 lighting success on 2026-10-11; this is not a local test of this implementation",
   "reason": "GPWB2401 (BY Tech 258A:010C) has the experimental by_tech driver; its writes wait for the owner's verification. The firmware image and controller are unknown.",
   "needed_for_target_flashing": "Controller/board mapping, bootloader, exact compatible firmware image and the owner's written consent. Archive names alone do not establish switch type or revision.",
-  "documentation": "docs/DEVICES.md"
+  "documentation": "docs/DEVICES.md",
+  "device_workspace": "1360x840 default; fixed viewport stage; compact navigation; trailing identity/actions; closable bottom island; mode titles and bottom-right settings inside each card; top Back always opens device list; encoder assignments remain placeholders",
+  "workspace_validation": "76 hardware-free tests; fmt and clippy with warnings denied; release build. GPU offline suite: 31 scenes at 720/1040/1600 px (verification/gpu-checked/complete.json), including zoomed lighting/encoder pointer tracking, palette edges, minimum height, reversal, close and idle checks. Native synthetic preview verifies one mesh upload and zero frame readbacks; no new model submissions after settling. No hardware writes validated.",
+  "workspace_performance": "Reactive wgpu/Direct3D 12 rendering, 4x MSAA, direct native textures and one mesh upload per visual. Finite wave demo; zoomed pointer rotation at 28 percent. Large scratch attachments released at rest/hidden. Native synthetic window on RTX 3080: 0 ms CPU over 5 s, 182.83 MB working set; UI update mean 0.288 ms, max 2.015 ms excludes GPU/presentation. Native frame rate and GPU utilization not measured. Details: docs/GPU-PERFORMANCE.md.",
+  "lighting_preview": "Original 1536 px case atlas plus independent 2048 px key-top atlas with outline legends and anisotropic mip sampling; GGX roughness/metallic shading, filtered shadow map and contact shading; emissive legend apertures and under-cap sockets; local diffuse spill and restrained HDR emission-only bloom; plastic albedo preserved. GPU approximation; hardware emission/transmission not measured.",
+  "led_color_picker": "Hue-only concentric rings at full saturation/value; analytic subpixel edge coverage at native display density with 2x minimum; cached spectrum independent of marker; Solid/Reactive one color, Wave three independently edited colors; outlined active color at center; pointer and keyboard control; no black/dim input",
+  "gpu_idle_measurement_2026_10_28": {
+    "backend": "wgpu Direct3D 12; MemoryHints::MemoryUsage",
+    "adapter": "NVIDIA GeForce RTX 3080",
+    "scope": "one hardware-free native preview; default window and synthetic keyboard; no discovery or telemetry",
+    "cpu_ms_per_5s": 0.0,
+    "working_set_mb": 182.83,
+    "private_memory_mb": 257.21,
+    "mesh_uploads": 1,
+    "frame_readbacks": 0,
+    "model_renders_first_idle_and_exit": 51,
+    "retained_working_views": 0,
+    "earlier_120_mb_guideline_met": false
+  }
 }

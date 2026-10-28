@@ -17,6 +17,8 @@ const VIEW: Vec3 = [0.0, 0.0, 1.0];
 /// What a vertex contributes: `color = texel * multiply + add`.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Lit {
+    pub emission: Vec3,
+    pub glow: Vec3,
     pub multiply: Vec3,
     pub add: Vec3,
 }
@@ -72,7 +74,12 @@ impl Rig {
             s.color[c] * light
         });
         let add = std::array::from_fn(|c| highlight * s.specular[c] + self.rim[c] * rim);
-        Lit { multiply, add }
+        Lit {
+            multiply,
+            add,
+            emission: [0.0; 3],
+            glow: [0.0; 3],
+        }
     }
 }
 

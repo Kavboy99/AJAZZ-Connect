@@ -15,12 +15,26 @@ pub enum DeviceKind {
 }
 
 /// One fact about a device, shown on its page. Structured so the interface can translate it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PowerSource {
+    Battery,
+    External,
+    Unknown,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Detail {
-    Usb { vid: u16, pid: u16 },
+    Usb {
+        vid: u16,
+        pid: u16,
+    },
     Firmware(String),
     Release(u16),
     Leds(usize),
+    /// Last validated percentage from discovery or an optional read-only battery refresh.
+    Battery(u8),
+    /// Observed power source; external power does not establish active charging.
+    Power(PowerSource),
 }
 
 /// The device passport: everything the interface needs to list and describe a device.

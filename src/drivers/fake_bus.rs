@@ -20,6 +20,7 @@ struct State {
     feature: VecDeque<Vec<u8>>,
     responder: Responder,
     backups: Vec<(String, Vec<u8>, usize)>,
+    descriptor: Option<Vec<u8>>,
 }
 
 pub struct FakeBus {
@@ -37,12 +38,19 @@ impl FakeBus {
                 feature: VecDeque::new(),
                 responder,
                 backups: Vec::new(),
+                descriptor: None,
             })),
         })
     }
 
     pub fn log(&self) -> Vec<Packet> {
         self.state.lock().map(|s| s.log.clone()).unwrap_or_default()
+    }
+
+    pub fn set_descriptor(&self, descriptor: Vec<u8>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.descriptor = Some(descriptor);
+        }
     }
 
     pub fn backups(&self) -> Vec<(String, Vec<u8>)> {
@@ -118,8 +126,18 @@ impl HidChannel for Channel {
             .unwrap_or(0))
     }
 
-    fn report_descriptor(&self, _buffer: &mut [u8]) -> Result<usize, DriverError> {
-        Err(DriverError::Io("fake bus has no descriptors".into()))
+    fn report_descriptor(&self, buffer: &mut [u8]) -> Result<usize, DriverError> {
+        let state = self
+            .0
+            .lock()
+            .map_err(|_| DriverError::Io("fake bus poisoned".into()))?;
+        let descriptor = state
+            .descriptor
+            .as_ref()
+            .ok_or_else(|| DriverError::Io("fake bus has no descriptors".into()))?;
+        let n = buffer.len().min(descriptor.len());
+        buffer[..n].copy_from_slice(&descriptor[..n]);
+        Ok(n)
     }
 
     fn container_id(&self) -> Result<u128, DriverError> {

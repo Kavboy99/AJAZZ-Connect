@@ -1,8 +1,10 @@
 //! The window: navigation pane on the left (the only place the Mica backdrop shows through), an
 //! opaque content layer on the right, and directional transitions between pages.
 
+use super::device_reveal::Reveal;
 use super::icons::Icon;
-use super::motion::{self, Channel, Frame, Style, Transition, tokens};
+use super::motion::{self, Channel, Style, Transition, tokens};
+mod content;
 use super::pages::{Model, Pages, Route, set_settling};
 use super::strings as s;
 use super::theme::mode;
@@ -11,8 +13,7 @@ use super::widgets::{Button, Interaction, focus_ring, mix};
 use crate::app::{Settings, Theme};
 use eframe::egui::{
     self, CentralPanel, Color32, Context, CornerRadius, Id, Painter, Rect, Sense, SidePanel,
-    Stroke, StrokeKind, Ui, UiBuilder, Vec2, WidgetInfo, WidgetType, emath::TSTransform, pos2,
-    vec2,
+    Stroke, StrokeKind, Ui, Vec2, WidgetInfo, WidgetType, pos2, vec2,
 };
 use std::f32::consts::FRAC_PI_2;
 
@@ -20,13 +21,19 @@ const INDICATOR_HEIGHT: f32 = 16.0;
 
 pub struct Shell {
     expanded: bool,
+    device_expanded: bool,
+    device_route: Option<Route>,
     transition: Transition<Route>,
+    reveal: Option<Reveal>,
 }
 
 impl Default for Shell {
     fn default() -> Self {
         Self {
             expanded: true,
+            device_expanded: false,
+            device_route: None,
+            reveal: None,
             transition: Transition::new(Route::Devices),
         }
     }
@@ -35,13 +42,23 @@ impl Default for Shell {
 /// The navigation item a route belongs to.
 fn section(route: Route) -> Route {
     match route {
-        Route::Device(_) => Route::Devices,
+        Route::Device(_) | Route::Preview(_) => Route::Devices,
         other => other,
     }
 }
 
 impl Shell {
+    pub fn route(&self) -> Route {
+        self.transition.current()
+    }
     pub fn navigate(&mut self, route: Route, style: Style) {
+        if let Some(reveal) = &mut self.reveal
+            && reveal.navigate(route)
+        {
+            self.transition.rename(route);
+            return;
+        }
+        self.reveal = None;
         self.transition.navigate(route, style);
     }
 
@@ -49,6 +66,7 @@ impl Shell {
     /// the list when the device is gone. `moved` maps old slots to new ones.
     pub fn follow(&mut self, moved: &[Option<usize>]) {
         if let Route::Device(slot) = self.transition.current() {
+            self.reveal = None;
             match moved.get(slot).copied().flatten() {
                 Some(new) => self.transition.rename(Route::Device(new)),
                 None => self.transition.navigate(Route::Devices, Style::DrillOut),
@@ -64,7 +82,18 @@ impl Shell {
         pages: &mut Pages,
     ) {
         let wide = ctx.content_rect().width() >= breakpoint::NAV_EXPANDED;
-        let target = if self.expanded && wide {
+        let in_device = matches!(self.route(), Route::Device(_) | Route::Preview(_));
+        let device_route = in_device.then_some(self.route());
+        if self.device_route != device_route {
+            self.device_expanded = false;
+            self.device_route = device_route;
+        }
+        let expanded = if in_device {
+            self.device_expanded
+        } else {
+            self.expanded
+        };
+        let target = if expanded && wide {
             size::NAV_EXPANDED
         } else {
             size::NAV_COLLAPSED
@@ -124,7 +153,11 @@ impl Shell {
                 .add(Button::icon_only(Icon::Menu, s::NAV_TOGGLE))
                 .clicked()
             {
-                self.expanded = !self.expanded;
+                if self.device_route.is_some() {
+                    self.device_expanded = !self.device_expanded;
+                } else {
+                    self.expanded = !self.expanded;
+                }
             }
             if reveal > 0.0 {
                 // Painted, not laid out: the name fades and slides under the pane edge.
@@ -202,49 +235,11 @@ impl Shell {
                 .rect_filled(bar, CornerRadius::ZERO, color::ACCENT.get());
         }
         if let Some(route) = clicked
-            && route != current
+            && (route != current || self.reveal.is_some())
         {
-            self.transition.navigate(route, Style::Entrance);
+            self.navigate(route, Style::Entrance);
         }
     }
-
-    fn content(&mut self, ui: &mut Ui, rect: Rect, model: &mut Model<'_>, pages: &mut Pages) {
-        self.transition.step(ui.ctx());
-        let reduced = motion::reduced(ui.ctx());
-        let mut navigate = None;
-        if let Some((route, frame)) = self.transition.outgoing() {
-            draw_page(ui, rect, frame, false, |ui| {
-                pages.show(ui, route, model);
-            });
-        }
-        let current = self.transition.current();
-        draw_page(ui, rect, self.transition.incoming(reduced), true, |ui| {
-            navigate = pages.show(ui, current, model);
-        });
-        if let Some((route, style)) = navigate {
-            self.transition.navigate(route, style);
-        }
-    }
-}
-
-/// A page in its own child area. The leaving page is drawn underneath and takes no input.
-fn draw_page(ui: &mut Ui, rect: Rect, frame: Frame, interactive: bool, add: impl FnOnce(&mut Ui)) {
-    if frame.opacity <= 0.0 {
-        return;
-    }
-    let mut child = ui.new_child(
-        UiBuilder::new()
-            .max_rect(rect)
-            .id_salt(("page-layer", interactive)),
-    );
-    child.set_clip_rect(rect);
-    if !interactive {
-        child.disable();
-    }
-    child.multiply_opacity(frame.opacity);
-    let center = rect.center().to_vec2();
-    let transform = TSTransform::new(center * (1.0 - frame.scale) + frame.offset, frame.scale);
-    child.with_visual_transform(transform, add);
 }
 
 /// A 40 px navigation row. Returns its rectangle and whether it was clicked.

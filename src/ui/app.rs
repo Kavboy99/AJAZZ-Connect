@@ -10,6 +10,8 @@ use eframe::egui::{Context, Id};
 use std::sync::Arc;
 
 pub struct App {
+    gpu_capture: Option<gpu_capture::Capture>,
+    battery: battery::BatterySchedule,
     events: Events,
     session: Session,
     diagnostics: Diagnostics,
@@ -39,6 +41,8 @@ impl App {
         theme::style::apply(ctx);
         let repaint = ctx.clone();
         Self {
+            gpu_capture: None,
+            battery: battery::BatterySchedule::default(),
             events: Events::new(Arc::new(move || repaint.request_repaint())),
             session: Session::default(),
             diagnostics: Diagnostics::default(),
@@ -81,6 +85,9 @@ impl App {
     pub fn session_mut(&mut self) -> &mut Session {
         &mut self.session
     }
+    pub fn capture_gpu_metrics(&mut self, ctx: &Context, path: std::path::PathBuf) {
+        self.gpu_capture = Some(gpu_capture::Capture::new(ctx.clone(), path));
+    }
 
     pub fn diagnostics_mut(&mut self) -> &mut Diagnostics {
         &mut self.diagnostics
@@ -93,6 +100,11 @@ impl App {
     fn drain(&mut self) {
         while let Some(event) = self.events.try_next() {
             match event {
+                Event::Battery(completed) => {
+                    for result in completed {
+                        self.session.finish_battery(result);
+                    }
+                }
                 Event::Discovered(found) => {
                     self.pages.forget_devices();
                     let moved = self.session.adopt(found);
@@ -109,7 +121,7 @@ impl App {
         }
     }
 
-    /// One frame. Runs only on input, a finished task or a moving spring.
+    /// One frame: input, completed tasks, moving springs, or an adaptive telemetry deadline.
     pub fn frame(&mut self, ctx: &Context) {
         let animations = transport::animations_enabled();
         motion::begin_frame(ctx, animations);
@@ -127,6 +139,13 @@ impl App {
         }
         self.drain();
         self.search_when_due(ctx);
+        let hidden =
+            self.battery.window_hidden || ctx.input(|i| i.viewport().minimized.unwrap_or(false));
+        self.update_batteries(ctx, hidden);
+        if hidden {
+            super::viewer::gpu::finish_frame(ctx, true);
+            return;
+        }
         let mut model = Model {
             session: &mut self.session,
             diagnostics: &mut self.diagnostics,
@@ -137,12 +156,17 @@ impl App {
         };
         self.shell
             .show(ctx, self.backdrop, &mut model, &mut self.pages);
+        super::viewer::gpu::finish_frame(ctx, false);
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+        let started = std::time::Instant::now();
         self.frame(ctx);
+        if let Some(capture) = &mut self.gpu_capture {
+            capture.record(started.elapsed());
+        }
         if self.backdrop && self.backdrop_theme != self.settings.theme {
             self.backdrop_theme = self.settings.theme;
             super::tint_backdrop(frame, self.settings.theme == Theme::Dark);
@@ -157,3 +181,5 @@ impl eframe::App for App {
         }
     }
 }
+mod battery;
+mod gpu_capture;

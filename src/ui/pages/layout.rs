@@ -38,25 +38,6 @@ pub fn hint(ui: &mut Ui, text: &str) {
     });
 }
 
-/// Width of the label column in label/value rows.
-const FIELD_LABEL: f32 = 160.0;
-
-/// A label column of fixed width and a value. Identifiers use the monospaced role.
-pub fn field(ui: &mut Ui, name: &str, value: &str, mono: bool) {
-    ui.horizontal_top(|ui| {
-        ui.allocate_ui_with_layout(
-            eframe::egui::vec2(FIELD_LABEL, Role::Body.line_height()),
-            Layout::left_to_right(Align::Min),
-            |ui| {
-                ui.set_min_width(FIELD_LABEL);
-                ui.add(Label::new(rich(name, Role::Body, color::TEXT_SECONDARY.get())).truncate());
-            },
-        );
-        let role = if mono { Role::Mono } else { Role::Body };
-        ui.add(Label::new(rich(value, role, color::TEXT_PRIMARY.get())).wrap());
-    });
-}
-
 /// Text runs of different roles on one baseline.
 pub fn spans(ui: &mut Ui, runs: &[(&str, Role, Color32)]) {
     let mut job = LayoutJob::default();

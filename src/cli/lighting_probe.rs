@@ -33,6 +33,8 @@ pub fn run(driver_id: &str, out: &Path) -> Result<()> {
                     Detail::Usb { vid, pid } => format!("usb {vid:04X}:{pid:04X}"),
                     Detail::Firmware(v) => format!("firmware {v}"),
                     Detail::Release(r) => format!("bcdDevice {r:04X}"),
+                    Detail::Battery(percent) => format!("battery {percent}% at discovery"),
+                    Detail::Power(source) => format!("power {source:?} at discovery"),
                     Detail::Leds(n) => format!("leds {n}"),
                 })
                 .collect();

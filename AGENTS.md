@@ -5,10 +5,7 @@ imports this file. Details live in `docs/`; this file holds what you must know b
 
 ## What this project is
 
-A lightweight Windows application for **configuring and customizing any PC device**: keyboards,
-mice, lighting, fans and other peripherals from different manufacturers (lighting, remapping, passive
-USB/HID diagnostics). The manufacturer is not a property of the application but of a driver: everything
-that knows about a specific brand lives only in `drivers/` and in device profiles.
+A lightweight Windows application with a proprietary, project-owned device-control system. Support is implemented directly for specific devices and verified hardware revisions, currently the two AK820 MAX platforms below. Device protocols live in `drivers/` and device profiles; no external RGB service is part of the product architecture.
 
 **The application is for users.** Adding new devices is the work of developers and contributors, and
 their tools do not belong in the interface: no firmware or package analysis, no protocol labs, no
@@ -20,11 +17,18 @@ toward the pointer, rising on hover with a soft glow behind it), for every devic
 long flat rows. A device without a model shows its kind icon on the same stage. Rules:
 `docs/DESIGN.md`, section 8.1.
 
+**The interactive 3D workspace is the standard for every device model**, including future devices.
+Preserve contextual zoom, reduced pointer tracking while zoomed, spring-based transitions, readable
+close-up materials/legends, and lighting emitted by the actual luminous parts. Use GPU rendering
+without native frame readbacks; cache at rest and release large temporary targets. Never trade away
+texture quality during motion or replace illumination with a whole-device tint. The normative quality,
+interaction and review requirements are in `docs/DESIGN.md`, section 8.3; sections 5.2–5.3 define the
+workspace and lighting picker. New assets and renderer changes must meet this standard.
+
 **The product is called "Lusorium Studio"** (renamed from the working name "AJAZZ Connect" on
 2026-10-28; the exe is `lusorium-studio.exe`). Rules:
 - The product name, data paths and strings are never hard-coded as literals. The single source is the
-  application identity module (`src/app/identity.rs`): name, data directory, lock prefix, OpenRGB
-  client name; the package and exe name live in `Cargo.toml`, the app icon in
+  application identity module (`src/app/identity.rs`): name, data directory, lock prefix and service client identity; the package and exe name live in `Cargo.toml`, the app icon in
   `src/ui/icons/app_icon.rs`. New code refers to the product only through them.
 - The product name, icon and UI contain no third-party trademarks. Manufacturer names are allowed only
   as a description of supported hardware ("compatible with ...").
@@ -35,8 +39,7 @@ long flat rows. A device without a model shows its kind icon on the same stage. 
   `%LOCALAPPDATA%\LusoriumStudio` on first launch). The places that carry the name are listed in
   `docs/ARCHITECTURE.md`, section 7.
 
-Only keyboards are implemented today (AJAZZ AK820 MAX and OpenRGB-compatible ones). That is the initial
-support, not the boundary of the project.
+Current development targets are the two keyboards listed below. Additional hardware requires explicit protocol identification, a device profile and owner verification.
 
 ## Development devices
 
@@ -55,7 +58,8 @@ the verification log: `docs/DEVICES.md`.
 ## Hard code rules
 
 1. **Rust only** (edition 2024). Python in `tools/` consists of standalone analysis labs; it is not part
-   of the application and never opens HID. No new functionality in other languages.
+   of the application and never opens HID. The GPU renderer may use WGSL shader assets with a safe
+   Rust/wgpu host. No other new functionality in other languages.
 2. **Structure beats speed of writing.** One module, one responsibility. Target directory layout and
    file-splitting rules: `docs/ARCHITECTURE.md`. Soft file limit is about 300 lines; beyond that, split
    instead of gluing things together.
@@ -69,8 +73,8 @@ the verification log: `docs/DEVICES.md`.
 5. **Memory and CPU.** The app is built for gamers: in the background it practically does not exist.
    Rules and budgets are in `docs/ARCHITECTURE.md`, section "Performance". In short: no permanent loops
    or polling, repaint only on events, a HID descriptor is read at most once per session, no idle threads.
-6. **Extensibility and universality**: the core, the UI and `app/` know nothing about brands or device
-   types; they work through capabilities (lighting, keys, DPI, fan speed, ...). A community driver is
+6. **Device-specific support and separation of responsibilities**: the core, the UI and `app/` know nothing about brands or device
+   types; they work through capabilities (lighting, keys, DPI, fan speed, ...). A project-owned protocol adapter is
    added as one folder in `src/drivers/` plus one line in the registry; a new device of an already known
    protocol is added only as a profile data entry, with no code. Contract and checklist:
    `docs/ADDING-A-DRIVER.md`.
@@ -145,6 +149,10 @@ target\release\lusorium-studio.exe --probe report.json
 | `research/SOURCE-MANIFEST.json` | Local copies of external sources and their SHA256 |
 
 ## Definition of Done
+
+- [ ] Model/renderer changes meet `docs/DESIGN.md` 8.3: close-up readability, contextual zoom,
+      pointer tracking, lighting depth, and no model submissions at rest; checked in overview,
+      editor and inspector states at 720/1040/1600 px.
 
 - [ ] `fmt`, `clippy -D warnings`, `test` pass; `release` builds.
 - [ ] New code follows `docs/ARCHITECTURE.md`; no "dump" files.

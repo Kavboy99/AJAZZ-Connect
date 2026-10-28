@@ -344,6 +344,24 @@
       "retrieved_date": "2026-10-27",
       "sha256": "127f820ddc21c5151bbe5ff49fe32da77dccf7831dad288332201cfbf0b26a3b",
       "url": "https://github.com/microsoft/ArduinoHidForWindows/blob/main/src/Microsoft_HidLampArray.cpp"
+    },
+    {
+      "repository": "leisiji/AulaSofwareLinux",
+      "path": "src/proto.rs",
+      "local_path": "research/sources/leisiji__AulaSofwareLinux/src/proto.rs",
+      "retrieved_date": "2026-10-28",
+      "sha256": "2ed90982105e7d720df425970d04943f08c5ef6747f128df9779be4caa8211da",
+      "url": "https://github.com/leisiji/AulaSofwareLinux/blob/main/src/proto.rs",
+      "use": "Protocol facts only; original implementation not linked or executed"
+    },
+    {
+      "repository": "deepan-alve/womier-l65-linux",
+      "path": "linux/l65ctl.py",
+      "local_path": "research/sources/deepan-alve__womier-l65-linux/linux/l65ctl.py",
+      "retrieved_date": "2026-10-28",
+      "sha256": "ae7f98aec5d8fa335f6651385e2e02419a6451b350f9e78d9ef3e4ed0d1f35cb",
+      "url": "https://github.com/deepan-alve/womier-l65-linux/blob/main/linux/l65ctl.py",
+      "use": "Protocol facts only; original implementation not linked or executed"
     }
   ]
 }

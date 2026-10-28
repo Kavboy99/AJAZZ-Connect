@@ -4,6 +4,7 @@
 [[device]]
 vendor = "AJAZZ"
 model = "AK820 Pro / MAX"
+catalog_model = "AK820 MAX"
 kind = "keyboard"
 visual = "ak820-max"
 driver = "sonix_aa55"
@@ -15,6 +16,7 @@ product_contains = "AK820"
 [[device]]
 vendor = "AJAZZ"
 model = "AK820 / AK820 MAX (Feature)"
+catalog_model = "AK820 MAX"
 kind = "keyboard"
 visual = "ak820-max"
 driver = "sonix_feature"

@@ -5,6 +5,8 @@ use crate::core::{Bus, Driver, DriverError, Outcome, ReportSizes, Rgb, Snapshot}
 use crate::diagnostics::Report;
 use crate::drivers::fake_bus::{FakeBus, Packet, Responder};
 use std::sync::{Arc, Mutex};
+mod lighting;
+mod radio;
 
 fn endpoint() -> Endpoint {
     Endpoint::hid(0x258a, 0x010c, 0xff00, 1)
@@ -59,6 +61,7 @@ fn responder(state: Arc<Mutex<Keyboard>>) -> Responder {
             0x82 => vec![answer(p, &k.password)],
             0x84 => vec![answer(p, &k.config)],
             0x8a => vec![answer(p, &k.colors)],
+            0x87 => vec![answer(p, &[92, 16])],
             0x04 if k.stores => {
                 k.config = p[8..8 + CONFIG_BYTES].to_vec();
                 Vec::new()
@@ -193,7 +196,7 @@ fn discovery_only_reads_and_a_foreign_password_stops_it() {
     let bus: Arc<dyn Bus> = fake.clone();
     let found = ByTechDriver.discover(&bus);
     assert_eq!(found.devices.len(), 1, "{:?}", found.notes);
-    assert_eq!(opcodes(&fake.log()), [0x82, 0x84, 0x8a]);
+    assert_eq!(opcodes(&fake.log()), [0x82, 0x84, 0x8a, 0x87]);
 
     state.lock().unwrap().password = [3, 0, 0, 0, 1, 0x99];
     let before = fake.log().len();

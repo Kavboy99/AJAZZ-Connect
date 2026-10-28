@@ -9,16 +9,20 @@ mod digest;
 mod driver;
 mod endpoint;
 mod error;
+mod lighting;
 mod snapshot;
 
 pub use bus::{Bus, Guard, HidChannel, Stream};
-pub use capability::{Lighting, LightingTraits, Outcome, Rollback};
+pub use capability::{Battery, Lighting, LightingTraits, Outcome, Rollback};
 pub use color::Rgb;
-pub use device::{Detail, DeviceDescriptor, DeviceKind};
+pub use device::{Detail, DeviceDescriptor, DeviceKind, PowerSource};
 pub use digest::sha256_hex;
 pub use driver::{
     Device, Discovery, Driver, DriverInfo, Identification, Maturity, Note, Requirement,
 };
 pub use endpoint::{Endpoint, ReportSizes};
 pub use error::DriverError;
+pub use lighting::{
+    LightingEditor, LightingEffect, LightingPreset, LightingPreview, LightingSettings,
+};
 pub use snapshot::Snapshot;

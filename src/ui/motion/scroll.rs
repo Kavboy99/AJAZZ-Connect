@@ -12,7 +12,13 @@ pub struct KineticScroll {
 }
 
 impl KineticScroll {
-    pub fn show<R>(&mut self, ui: &mut Ui, id: Id, add: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(
+        &mut self,
+        ui: &mut Ui,
+        id: Id,
+        bars: bool,
+        add: impl FnOnce(&mut Ui) -> R,
+    ) -> R {
         let ctx = ui.ctx().clone();
         let hovered = ui.rect_contains_pointer(ui.max_rect());
         let delta = if hovered {
@@ -44,6 +50,11 @@ impl KineticScroll {
         self.offset = self.offset.clamp(0.0, self.max);
         let output = ScrollArea::vertical()
             .id_salt(id)
+            .scroll_bar_visibility(if bars {
+                eframe::egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded
+            } else {
+                eframe::egui::scroll_area::ScrollBarVisibility::AlwaysHidden
+            })
             .auto_shrink([false, false])
             .scroll_source(ScrollSource {
                 mouse_wheel: false,

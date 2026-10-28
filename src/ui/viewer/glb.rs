@@ -10,12 +10,15 @@ const CHUNK_JSON: u32 = 0x4e4f_534a;
 const CHUNK_BIN: u32 = 0x004e_4942;
 const FLOAT: u32 = 5126;
 /// Textures are halved until no side exceeds this (`docs/ARCHITECTURE.md`, section 5).
-const MAX_TEXTURE_SIDE: u32 = 1024;
+const MAX_TEXTURE_SIDE: u32 = 4096;
 
 /// One vertex as the GPU reads it: position, normal, texture coordinate.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct Vertex {
+    pub part: usize,
+    pub bounce: [(usize, f32); 4],
+    pub legend: f32,
     pub position: Vec3,
     pub normal: Vec3,
     pub uv: [f32; 2],
@@ -42,12 +45,14 @@ pub struct Batch {
 
 /// Straight (not premultiplied) sRGB pixels.
 pub struct Image {
+    pub legend: Vec<u8>,
     pub width: u32,
     pub height: u32,
     pub rgba: Vec<u8>,
 }
 
 pub struct Scene {
+    pub parts: Vec<Option<String>>,
     /// Opaque batches first, blended ones last.
     pub batches: Vec<Batch>,
     pub images: Vec<Image>,
@@ -174,13 +179,14 @@ impl Reader<'_> {
         let mut decoded = image::load_from_memory_with_format(data, image::ImageFormat::Png)
             .map_err(|e| e.to_string())?
             .to_rgba8();
-        // A tile shows the model a few hundred pixels wide: a larger texture only costs memory.
+        // The same asset also fills the device workspace: retain native legend detail there.
         while decoded.width().max(decoded.height()) > MAX_TEXTURE_SIDE {
             let (w, h) = (decoded.width().div_ceil(2), decoded.height().div_ceil(2));
             decoded =
                 image::imageops::resize(&decoded, w, h, image::imageops::FilterType::Triangle);
         }
         Ok(Image {
+            legend: Vec::new(),
             width: decoded.width(),
             height: decoded.height(),
             rgba: decoded.into_raw(),
@@ -256,6 +262,9 @@ fn walk(
                         .zip(&normals)
                         .zip(&uvs)
                         .map(|((&p, &n), &uv)| Vertex {
+                            part: node,
+                            bounce: [(0, 0.0); 4],
+                            legend: 0.0,
                             position: math::transform_point(&world, p),
                             normal: math::transform_direction(&world, n),
                             uv,
@@ -294,6 +303,7 @@ pub fn parse(bytes: &[u8]) -> Result<Scene, String> {
     }
     let (center, radius) = bounds(&batches).ok_or("empty model")?;
     Ok(Scene {
+        parts: doc.nodes.iter().map(|n| n.name.clone()).collect(),
         batches,
         images,
         center,
