@@ -1,0 +1,6 @@
+# Offline placeholders only. These entries never participate in device discovery.
+[[preview]]
+vendor = "AJAZZ"
+model = "AJ159"
+kind = "mouse"
+visual = "aj159"

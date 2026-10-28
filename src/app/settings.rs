@@ -28,6 +28,9 @@ pub struct Settings {
     /// Drivers implemented from descriptions and not verified on a device take part in search.
     pub experimental_drivers: bool,
     pub theme: Theme,
+    pub developer_mode: bool,
+    pub show_all_devices: bool,
+    pub battery_mode: super::battery::BatteryMode,
 }
 
 fn path() -> Option<PathBuf> {

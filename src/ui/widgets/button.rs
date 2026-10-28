@@ -21,6 +21,7 @@ pub struct Button<'a> {
     text: &'a str,
     icon: Option<Icon>,
     enabled: bool,
+    passive: bool,
     busy: bool,
     tooltip: Option<&'a str>,
 }
@@ -32,6 +33,7 @@ impl<'a> Button<'a> {
             text,
             icon: None,
             enabled: true,
+            passive: false,
             busy: false,
             tooltip: None,
         }
@@ -58,6 +60,12 @@ impl<'a> Button<'a> {
 
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+
+    /// Keeps the visual state while a transitioning source page cannot accept input.
+    pub fn passive(mut self, passive: bool) -> Self {
+        self.passive = passive;
         self
     }
 
@@ -115,7 +123,8 @@ impl<'a> Button<'a> {
 
 impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let enabled = self.enabled && !self.busy && ui.is_enabled();
+        let visually_enabled = self.enabled && !self.busy && (ui.is_enabled() || self.passive);
+        let enabled = self.enabled && !self.busy && ui.is_enabled() && !self.passive;
         let galley = (!self.text.is_empty()).then(|| {
             WidgetText::from(self.text).into_galley(
                 ui,
@@ -152,7 +161,7 @@ impl Widget for Button<'_> {
             return response;
         }
         let state = Interaction::of(ui, response.id, &response);
-        let (fill, ink, stroke) = self.colors(&state, enabled);
+        let (fill, ink, stroke) = self.colors(&state, visually_enabled);
         let mut shapes = vec![Shape::rect_filled(
             rect,
             CornerRadius::same(radius::CONTROL),

@@ -4,6 +4,7 @@
 [[device]]
 vendor = "AJAZZ"
 model = "AK820 MAX"
+catalog_model = "AK820 MAX"
 kind = "keyboard"
 visual = "ak820-max"
 driver = "by_tech"
@@ -11,11 +12,14 @@ support = "identified"
 vid = 0x258A
 pids = [0x010C]
 
-# The receiver shows only the radio channel; the keyboard's protocol does not apply to it.
+# Radio is battery-only, with a separate exact-descriptor check and read codec; no lighting writes.
 [[device]]
 vendor = "AJAZZ"
-model = "AK820 MAX 2.4G receiver"
-kind = "other"
+model = "AK820 MAX"
+catalog_model = "AK820 MAX"
+kind = "keyboard"
+visual = "ak820-max"
+driver = "by_tech"
 support = "identified"
 vid = 0x3554
 pids = [0xFA09]

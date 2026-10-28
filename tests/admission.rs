@@ -6,7 +6,10 @@ use lusorium_studio::diagnostics::Report;
 use lusorium_studio::drivers::registry;
 
 /// Which driver may admit endpoints of each captured device; `None` means no driver may.
-const FIXTURES: &[(&str, Option<&str>)] = &[("probe-by-tech-gpwb2401-wired.json", Some("by_tech"))];
+const FIXTURES: &[(&str, Option<&str>)] = &[
+    ("probe-by-tech-gpwb2401-wired.json", Some("by_tech")),
+    ("probe-by-tech-gpwb2401-radio.json", Some("by_tech")),
+];
 
 fn fixture(name: &str) -> Report {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

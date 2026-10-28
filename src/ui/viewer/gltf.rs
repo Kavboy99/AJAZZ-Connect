@@ -30,6 +30,7 @@ pub(super) struct SceneNodes {
 
 #[derive(Deserialize)]
 pub(super) struct Node {
+    pub name: Option<String>,
     pub mesh: Option<usize>,
     #[serde(default)]
     pub children: Vec<usize>,

@@ -14,3 +14,6 @@ pub use events::{Event, Events};
 pub use session::Session;
 pub use settings::{Settings, Theme};
 pub use watch::{Due, Watch};
+pub mod catalog;
+
+pub mod battery;

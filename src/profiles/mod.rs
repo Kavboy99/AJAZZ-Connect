@@ -14,6 +14,7 @@ const SOURCES: &[(&str, &str)] = &[
     ("sonix.toml", include_str!("data/sonix.toml")),
     ("by_tech.toml", include_str!("data/by_tech.toml")),
     ("families.toml", include_str!("data/families.toml")),
+    ("previews.toml", include_str!("data/previews.toml")),
 ];
 
 /// How far support for a device has come (`docs/DEVICES.md`).
@@ -31,6 +32,8 @@ pub enum Support {
 pub struct DeviceProfile {
     pub vendor: String,
     pub model: String,
+    /// Explicit display grouping; never used for hardware admission.
+    pub catalog_model: Option<String>,
     pub kind: DeviceKind,
     pub driver: Option<String>,
     pub support: Support,
@@ -41,6 +44,16 @@ pub struct DeviceProfile {
     #[serde(default)]
     product_names: Vec<String>,
     /// A 3D model built into the interface (`ui/viewer/catalog.rs`).
+    pub visual: Option<String>,
+}
+
+/// Display-only data with no hardware matching rules or implied capabilities.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PreviewProfile {
+    pub vendor: String,
+    pub model: String,
+    pub kind: DeviceKind,
     pub visual: Option<String>,
 }
 
@@ -83,6 +96,8 @@ impl Family {
 #[serde(deny_unknown_fields)]
 struct File {
     #[serde(default)]
+    preview: Vec<PreviewProfile>,
+    #[serde(default)]
     device: Vec<DeviceProfile>,
     #[serde(default)]
     family: Vec<Family>,
@@ -90,6 +105,7 @@ struct File {
 
 #[derive(Default)]
 struct Profiles {
+    previews: Vec<PreviewProfile>,
     devices: Vec<DeviceProfile>,
     families: Vec<Family>,
 }
@@ -104,6 +120,7 @@ fn profiles() -> &'static Profiles {
         let mut all = Profiles::default();
         // Built-in data is checked by `every_built_in_file_parses`; a broken file adds nothing.
         for file in SOURCES.iter().filter_map(|(_, text)| parse(text).ok()) {
+            all.previews.extend(file.preview);
             all.devices.extend(file.device);
             all.families.extend(file.family);
         }
@@ -113,6 +130,10 @@ fn profiles() -> &'static Profiles {
 
 pub fn devices() -> &'static [DeviceProfile] {
     &profiles().devices
+}
+
+pub fn previews() -> &'static [PreviewProfile] {
+    &profiles().previews
 }
 
 /// Families in priority order: the first match explains an interface.

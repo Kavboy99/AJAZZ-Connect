@@ -14,6 +14,7 @@ pub fn show(ui: &mut Ui, model: &mut Model<'_>) -> Navigate {
     let mut navigate = None;
     let discovering = model.session.discovering();
     let busy = model.session.busy();
+    let passive = !ui.is_enabled() && crate::ui::device_reveal::moving(ui.ctx());
     let mut find = false;
     header(ui, s::DEVICES_TITLE, Some(s::DEVICES_LEAD), |ui| {
         let text = if discovering {
@@ -27,6 +28,7 @@ pub fn show(ui: &mut Ui, model: &mut Model<'_>) -> Navigate {
                     .icon(Icon::Search)
                     .tooltip(s::DEVICES_FIND_HINT)
                     .busy(discovering)
+                    .passive(passive)
                     .enabled(!busy),
             )
             .clicked();
@@ -38,7 +40,8 @@ pub fn show(ui: &mut Ui, model: &mut Model<'_>) -> Navigate {
     }
 
     let entries = model.session.entries();
-    if entries.is_empty() {
+    let catalog = model.settings.developer_mode && model.settings.show_all_devices;
+    if entries.is_empty() && !catalog {
         card(ui, |ui| {
             if model.session.searched() {
                 label(
@@ -73,6 +76,13 @@ pub fn show(ui: &mut Ui, model: &mut Model<'_>) -> Navigate {
         }
     }
 
+    if catalog {
+        gap(ui);
+        hint(ui, s::SETTINGS_ALL_DEVICES);
+        if let Some(target) = super::preview::grid(ui, model) {
+            navigate = Some(target);
+        }
+    }
     let notes = model.session.notes();
     if !notes.is_empty() {
         gap(ui);
@@ -127,7 +137,7 @@ fn tile(ui: &mut Ui, slot: usize, side: f32, entry: &Entry) -> eframe::egui::Res
     } else {
         &[]
     };
-    device_tile(
+    let response = device_tile(
         ui,
         Id::new(("device-tile", slot)),
         side,
@@ -139,7 +149,9 @@ fn tile(ui: &mut Ui, slot: usize, side: f32, entry: &Entry) -> eframe::egui::Res
             busy: entry.busy(),
             badges,
         },
-    )
+    );
+    crate::ui::device_reveal::remember(ui.ctx(), Route::Device(slot), response.rect);
+    response
 }
 
 fn show_note(ui: &mut Ui, note: &DriverNote) {

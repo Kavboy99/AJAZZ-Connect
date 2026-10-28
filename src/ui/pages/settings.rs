@@ -16,6 +16,59 @@ pub struct State {
 
 pub fn show(ui: &mut Ui, model: &mut Model<'_>, state: &mut State) -> Navigate {
     header(ui, s::SETTINGS_TITLE, None, |_| {});
+    card(ui, |ui| {
+        section_title(ui, Icon::Battery, s::SETTINGS_BATTERY);
+        use crate::app::battery::BatteryMode;
+        ui.horizontal_wrapped(|ui| {
+            for mode in [
+                BatteryMode::Automatic,
+                BatteryMode::Responsive,
+                BatteryMode::Eco,
+            ] {
+                let mut button = Button::new(s::battery_mode_name(mode));
+                if model.settings.battery_mode == mode {
+                    button = button.primary();
+                }
+                if ui.add(button).clicked() {
+                    model.settings.battery_mode = mode;
+                    state.save_failed = model.settings.save().is_err();
+                }
+            }
+        });
+        hint(ui, s::battery_mode_hint(model.settings.battery_mode));
+        if state.save_failed {
+            badge(ui, Tone::Critical, s::SETTINGS_SAVE_FAILED);
+        }
+    });
+    gap(ui);
+
+    card(ui, |ui| {
+        section_title(ui, Icon::Settings, s::SETTINGS_DEVELOPER);
+        if switch(
+            ui,
+            &mut model.settings.developer_mode,
+            s::SETTINGS_DEVELOPER,
+        )
+        .changed()
+        {
+            if !model.settings.developer_mode {
+                model.settings.show_all_devices = false;
+            }
+            state.save_failed = model.settings.save().is_err();
+        }
+        if model.settings.developer_mode
+            && switch(
+                ui,
+                &mut model.settings.show_all_devices,
+                s::SETTINGS_ALL_DEVICES,
+            )
+            .changed()
+        {
+            state.save_failed = model.settings.save().is_err();
+        }
+        hint(ui, s::SETTINGS_DEVELOPER_HINT);
+    });
+    gap(ui);
 
     card(ui, |ui| {
         section_title(ui, Icon::Settings, s::SETTINGS_DRIVERS);

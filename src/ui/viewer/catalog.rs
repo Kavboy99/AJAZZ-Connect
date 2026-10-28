@@ -6,10 +6,21 @@ use eframe::egui::Context;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-const MODELS: &[(&str, &[u8])] = &[(
-    "ak820-max",
-    include_bytes!("../../../assets/models/ak820-max.glb"),
-)];
+const MODELS: &[(&str, &[u8])] = &[
+    (
+        "ak820-max",
+        include_bytes!("../../../assets/models/ak820-max.glb"),
+    ),
+    ("aj159", include_bytes!("../../../assets/models/aj159.glb")),
+];
+
+#[cfg(test)]
+pub(super) fn model_bytes(id: &str) -> Option<&'static [u8]> {
+    MODELS
+        .iter()
+        .find(|(key, _)| *key == id)
+        .map(|(_, bytes)| *bytes)
+}
 
 #[derive(Clone)]
 enum Load {
@@ -35,7 +46,11 @@ fn loads() -> &'static Mutex<HashMap<&'static str, Load>> {
 pub fn preload() {
     if let Ok(mut state) = loads().lock() {
         for (key, bytes) in MODELS {
-            let load = glb::parse(bytes).map_or(Load::Failed, |s| Load::Ready(Arc::new(s)));
+            let load = glb::parse(bytes).map_or(Load::Failed, |mut s| {
+                super::led::prepare(&mut s, key);
+                super::keycaps::prepare(&mut s, key);
+                Load::Ready(Arc::new(s))
+            });
             state.insert(key, load);
         }
     }
@@ -56,7 +71,11 @@ pub fn model(ctx: &Context, id: &str) -> Model {
             state.insert(key, Load::Loading);
             let ctx = ctx.clone();
             std::thread::spawn(move || {
-                let load = glb::parse(bytes).map_or(Load::Failed, |s| Load::Ready(Arc::new(s)));
+                let load = glb::parse(bytes).map_or(Load::Failed, |mut s| {
+                    super::led::prepare(&mut s, key);
+                    super::keycaps::prepare(&mut s, key);
+                    Load::Ready(Arc::new(s))
+                });
                 if let Ok(mut loads) = loads().lock() {
                     loads.insert(key, load);
                 }

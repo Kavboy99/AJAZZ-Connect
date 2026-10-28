@@ -6,7 +6,10 @@ mod lighting_probe;
 mod probe;
 mod raster;
 mod review;
+mod review_lighting;
+mod review_scenes;
 mod review_state;
+mod review_studio;
 
 use anyhow::{Context, Result};
 use std::ffi::OsString;
@@ -36,7 +39,10 @@ pub fn run(args: &[OsString]) -> Option<Result<()>> {
             .with_context(|| format!("missing driver id. Usage: {USAGE}"))
             .and_then(|driver| Ok((driver, path(args, 2, "report path")?)))
             .and_then(|(driver, out)| lighting_probe::run(&driver, &out)),
-        "--review" => path(args, 1, "review directory").and_then(|dir| review::run(&dir)),
+        "--review" => path(args, 1, "review directory")
+            .and_then(|dir| review::run(&dir, args.get(2).and_then(|s| s.to_str()))),
+        "--review-window" => path(args, 1, "GPU metrics file")
+            .and_then(|out| crate::ui::run_preview(review_state::devices(), out)),
         other => Err(anyhow::anyhow!("unknown command {other}. Usage: {USAGE}")),
     })
 }

@@ -97,7 +97,13 @@ mod tests {
 
     #[test]
     fn overshoot_stays_within_three_percent() {
-        for spec in [FAST, STANDARD, PAGE, RELEASE] {
+        for spec in [
+            FAST,
+            STANDARD,
+            PAGE,
+            RELEASE,
+            super::super::tokens::DEVICE_REVEAL,
+        ] {
             let mut s = Spring::at(0.0);
             s.set_target(1.0);
             let mut peak: f32 = 0.0;

@@ -3,10 +3,7 @@
 This document describes how the code is organized (revision 0.3.0) and what is still a **target**.
 Anything marked "target" is not implemented yet. Do not present the target as existing.
 
-**Direction.** The application is a universal tool for configuring and customizing PC devices from any
-manufacturer and of any type (keyboards, mice, lighting, fans, ...), not a single-brand program.
-Everything tied to a brand is isolated in drivers and device profiles; the rest of the code is neutral
-(section 2).
+**Direction.** The product uses a proprietary, project-owned device-control system with direct protocol adapters for explicitly supported hardware revisions. Current development targets are the SONiX and BY Tech AK820 MAX variants. The core and UI remain capability-based; hardware-specific commands stay in drivers and profiles. No external RGB service is part of the product architecture.
 
 ## 1. Layers
 
@@ -45,7 +42,6 @@ src/
     sonix_aa55/            mod.rs, codec.rs, info.rs, backup.rs, driver.rs, tests.rs
     sonix_feature/         mod.rs, codec.rs, driver.rs, tests.rs
     hid_lamparray/         mod.rs, descriptor.rs, codec.rs, driver.rs, tests.rs
-    openrgb/               mod.rs, wire.rs, client.rs, backup.rs, driver.rs, tests.rs
     by_tech/               mod.rs, codec.rs, state.rs, backup.rs, driver.rs, tests.rs (experimental)
     fake_bus.rs            scripted Bus for driver tests (test builds only)
 
@@ -65,22 +61,28 @@ src/
     settings.rs            user settings (experimental drivers, theme)
 
   ui/                      display only (docs/DESIGN.md)
-    app.rs, shell.rs       eframe::App; navigation pane, content layer, page transitions
+    app.rs, shell.rs       eframe::App; navigation pane
+    shell/content.rs       page composition and single shared device surface
+    device_reveal.rs       reversible surface/stage geometry and source tile registration
     strings.rs             every user-facing string (Russian default, translatable)
     theme/                 tokens.rs (the only literals; dark/light per token), mode.rs (theme blend),
                            text.rs, fonts.rs, style.rs
     icons/                 enum Icon, embedded Hugeicons outlines, path flattening
     motion/                spring.rs, tokens.rs, transition.rs, scroll.rs, store in mod.rs
-    widgets/               button, card, badge, switch, expander, text_field, spinner, color_picker/,
+    widgets/               button, card, badge, switch, expander, spinner, lighting_palette,
                            device_tile (the square device tile, docs/DESIGN.md 8.1)
-    viewer/                3D device models: glb.rs + gltf.rs (glTF 2.0 binary reader), raster.rs
-                           (software rasterizer), light.rs, math.rs, catalog.rs (built-in models)
-    pages/                 devices, device, lighting (a capability section), diagnostics, settings
+    viewer/                glb.rs + gltf.rs (glTF 2.0 binary reader), catalog.rs, led.rs, preview.rs
+      keycaps.rs           one-time independent plastic/outline-legend atlas for bound key surfaces
+      gpu/                 safe wgpu host, mesh/mips, matrices, pipelines, targets and WGSL shaders
+      raster.rs, raster/   software reference renderer for contexts without a GPU backend
+    pages/                 devices, device, lighting (explicit hardware actions), diagnostics, settings
+      studio/              viewport workspace state, model stage, mode island and settings inspector
 
   cli/                     --probe, --inspect, --lighting-probe, --review (+ raster.rs, review_state.rs)
 assets/models/*.glb        device models named by profiles (`visual = "..."`), embedded at build time
+assets/models/stages.toml  visual node/input bindings and camera focus; no hardware admission data
 tests/admission.rs         every probe fixture is rejected by every foreign driver
-tests/fixtures/            probe reports, reference descriptors, SDK packets
+tests/fixtures/            probe reports, reference descriptors, protocol packets
 ```
 
 ### File-splitting rules
@@ -97,10 +99,10 @@ tests/fixtures/            probe reports, reference descriptors, SDK packets
 6. **Public only what is needed outside.** Everything else is `pub(crate)` or private.
 
 One crate plus per-driver feature flags (`driver-sonix-aa55`, `driver-sonix-feature`,
-`driver-hid-lamparray`, `driver-openrgb`, all on by default) is simpler than an early workspace split.
+`driver-hid-lamparray`, `driver-by-tech`) is simpler than an early workspace split.
 Extracting workspace crates makes sense once external drivers with their own release cycle appear.
 
-## 2. Universality: profiles, drivers, a neutral core
+## 2. Device-specific support: profiles, protocol adapters, a neutral core
 
 | Layer | What it holds | Who adds it | Example |
 | --- | --- | --- | --- |
@@ -147,6 +149,8 @@ pub trait Device: Send {
 
 pub trait Lighting {
     fn traits(&self) -> LightingTraits;                 // writable, persistent, rollback
+    fn editor(&self) -> Option<LightingEditor>;         // cached programs and saved settings; no IO
+    fn apply_settings(&mut self, settings: LightingSettings) -> Result<Outcome, DriverError>;
     fn apply_solid(&mut self, color: Rgb) -> Result<Outcome, DriverError>;
     fn restore(&mut self) -> Result<Outcome, DriverError>;
     fn restore_snapshot(&mut self, snapshot: &Snapshot) -> Result<Outcome, DriverError>;
@@ -159,6 +163,14 @@ replay it on a fake bus. A device lacking a capability does not return it. The U
 and shows actions from `LightingTraits`: "Restore" when `rollback != Unavailable`, "From backup" for
 `SessionAndFile`, and badges for persistence and missing rollback. No `match` on a driver or brand.
 
+`core/lighting.rs` defines neutral native-program metadata. Drivers without native programs use the
+default unavailable implementation. BY Tech builds its catalog from validated cached configuration;
+`app/session` captures it at discovery and after operations. `ui/pages/studio/programs.rs` holds local
+per-preset drafts and the scrolling island. Only the explicit hardware action invokes a worker.
+`Driver::lighting_preview` exposes static control metadata without discovery or a bus. The application
+catalog caches it once. The studio uses it for offline pages and live connections lacking lighting,
+labels the values illustrative and keeps Apply disabled. Native device state always takes priority.
+
 ## 4. Migration status
 
 Done in 0.3.0 (each item replaced the old code; codec tests carried over):
@@ -167,7 +179,7 @@ Done in 0.3.0 (each item replaced the old code; codec tests carried over):
 3. `main.rs` split into `cli/`, `ui/shell.rs`, `ui/pages/*`.
 4. All `unsafe` and FFI moved to `transport/`.
 5. `core/` (`Driver`, `Device`, `Lighting`, `DriverError`, `Bus`) and `drivers::registry()`.
-6. `sonix_aa55`, `sonix_feature`, `hid_lamparray`, `openrgb` moved onto the traits; `enum Session` and
+6. `sonix_aa55`, `sonix_feature`, `hid_lamparray` moved onto the traits; `enum Session` and
    the numeric adapter choice are gone; the vendor-software mutex and name filters live in drivers and
    profiles.
 7. `profiles/` with device and family data; `families.rs` texts moved there (English and Russian).
@@ -178,7 +190,7 @@ Behavior changes worth knowing:
 - Search is automatic (item 11): at startup and whenever a relevant HID interface comes or goes; the
   "Refresh" button forces it. Experimental drivers (`sonix_feature`, `by_tech`) take part only when
   enabled in settings; until then their devices are listed as recognized and nothing is sent to them.
-- LampArray accepts every `LampArrayKind`, OpenRGB every device type (previously keyboards only).
+- LampArray accepts every `LampArrayKind`.
 - The probe sends AA55 `GET_INFO` to endpoints the AA55 driver admits (profile match) instead of a
   fixed PID list.
 - Diagnostic report schema 2: `identification` replaces `info`/`info_payload_hex`; `target_marking` is
@@ -207,17 +219,19 @@ Next (targets):
 
 ## 5. Performance
 
-**Budgets** and the values measured on 2026-10-28 (Windows 11, release build, window open on the
-"Devices" page, three runs each, compared with 0.2.0 on the same machine):
+**Budgets** and measurements. The historical OpenGL/CPU revision used 69 MB with an empty page and
+94 MB with a keyboard tile (three runs each, Windows 11, 2026-10-28). These are not measurements of
+the current backend. The owner explicitly requested GPU acceleration for the workspace revision.
+Current native wgpu/Direct3D 12 measurements and their limits are in `GPU-PERFORMANCE.md`.
 
 | State | CPU | Working-set memory |
 | --- | --- | --- |
 | Window minimized or hidden | 0% (no repaint, no polling) | as low as possible |
-| Window open, no actions | measured 0 ms CPU over 5 s (budget < 0.5% of a core) | measured 69 MB (0.2.0: 82 MB; guideline < 80 MB). With the automatic search at startup and one device tile, measured 2026-10-28: 86 MB without a model, 94 MB with the keyboard model (three runs each, ± 1 MB); about 3 s of CPU over the first seconds of startup in both builds, 0 afterwards |
+| Window open, no actions | measured 0 ms CPU over 5 s in a synthetic native GPU workspace (budget < 0.5% of a core) | 182.83 MB working set, 257.21 MB private memory on RTX 3080; exceeds the earlier 120 MB guideline; one sample, including driver/runtime costs |
 | Applying a color | short spike | no growth after completion (not measured: needs the device) |
-| Device tile with a model, idle | 0: the texture is reused, nothing is rendered | the parsed model ≈ 8 MB (once per model: 35k vertices, 64k triangles, the texture capped at 1024 px) plus ≈ 0.4 MB per tile texture |
+| Device model, idle | no new 3D submissions or readbacks; final GPU texture is reused | static mesh, mipmaps and final image retained; large work attachments released |
 | Waiting for devices | 0: no thread, timer or polling; Windows calls back on a device change | nothing extra |
-| Device tile while hovered or turning | measured 4.1 ms per frame for a 320 px tile (half-resolution draft), 18 ms once when it stops (2×2 supersampled), release build, one core | no growth |
+| Device model while hovered or turning | full resolution with 4x MSAA; native UI update mean 0.29 ms, max 2.01 ms in the synthetic preview (excludes GPU execution/presentation) | targets grow in 128 px buckets; scratch attachments exist only while rendering |
 
 **Rules:**
 
@@ -236,12 +250,15 @@ Next (targets):
 7. **Logs and reports are size-bounded**; backups are small JSON files (up to 128 KB, enforced on load).
 8. **Images and fonts.** Icons are embedded vector outlines of only the glyphs in use. Fonts come from
    the system (Segoe UI, Segoe UI Semibold, Cascadia Mono); none are bundled.
-9. **Mica is done by DWM, not by the application.** Custom blur shaders are forbidden.
+9. **Mica is done by DWM, not by the application.** Custom backdrop blur shaders are forbidden.
+   The model's bounded optical bloom is separate from the interface backdrop.
 10. **Device models** are embedded `.glb` files (`assets/models/`, 2.9 MB for the AK820 MAX) parsed on a
     short-lived thread the first time a tile shows them; the loader's `request_repaint` is the same
-    kind of wake-up as a finished worker. They are drawn by the CPU rasterizer in `ui/viewer` (no GPU
-    code, so no `unsafe` outside `transport/`) only while the pose changes; the extra frame that
-    upgrades a draft goes through `motion::keep_alive`. A model stays in memory once parsed.
+    kind of wake-up as a finished worker. Safe Rust in `ui/viewer/gpu` uploads each visual once and
+    renders changed poses/lighting only, using WGSL shaders. Native output is registered with egui's
+    renderer directly; it never reads frames back to the CPU. No `unsafe` is added. Scratch targets
+    are released at rest/minimize; only cached mesh/material data and resolved images remain. The
+    frame that changes a pose goes through `motion::keep_alive`. A parsed model remains cached.
 11. Any change that may affect consumption is measured as in the table above and recorded here.
 
 ## 6. Errors, logs, tests
@@ -262,10 +279,129 @@ these places only:
 
 | What | Where |
 | --- | --- |
-| Product name, OpenRGB client name, lock prefix, data directory `LusoriumStudio`, report file stem | `src/app/identity.rs`; the previous data directory goes to `LEGACY_DATA_DIRS` and is moved on first launch (`AjazzConnect` today) |
+| Product name, service client identity, lock prefix, data directory `LusoriumStudio`, report file stem | `src/app/identity.rs`; the previous data directory goes to `LEGACY_DATA_DIRS` and is moved on first launch (`AjazzConnect` today) |
 | Package and exe name `lusorium-studio` | `Cargo.toml` |
 | App icon (Hugeicons `game-controller-03` on a dark tile): window, taskbar and EXE resource | `src/ui/icons/app_icon.rs`, embedded by `build.rs` |
 | Archive names in `package*.ps1` | the scripts (previous developer's names and paths; not used for regular builds) |
 | Vendor-software mutex `Local\AjazzStudio-AK820MAX` | `src/drivers/sonix_aa55/mod.rs`, `src/drivers/sonix_feature/mod.rs` |
 | Product-name filters `AK820`, `AJAZZ` | `src/profiles/data/*.toml` |
 | Classifier texts about specific models | `src/profiles/data/families.toml` |
+
+
+### Device reveal review (2026-10-28)
+
+Historical CPU-renderer check: `--review verification/device-reveal-checked` exercises tile pointer input, Back, and an Escape
+reversal after seven incoming frames at 720, 1040 and 1600 px, using synthetic devices only.
+Captured intermediate frames contain one selected device model; the source tile suppresses its own
+stage while the shared stage travels. Hardware-free frame timing (egui update and CPU model rendering,
+excluding PNG rasterization, presentation and OS compositing) averaged 11.1-15.5 ms, with a maximum of
+22.0 ms across these six traces. This does not establish live window frame rate. At frame 140 all six
+traces requested no further repaint (`Duration::MAX`); live Task Manager CPU/memory were not remeasured.
+
+Offline placeholders live in `profiles/data/previews.toml` as `[[preview]]` entries. Their schema has
+only display metadata (vendor, model, kind, visual), with no admission rules or driver. The catalog
+includes these with an empty driver-variant list. `ui/pages/device_view.rs` borrows display fields
+from either a live descriptor or a catalog entry, representing the missing driver explicitly.
+Placeholders cannot enter discovery or expose hardware actions. Visual editing is allowed by asset bindings.
+
+Device workspace revision (2026-10-28): model editing is local view state in `ui/pages/studio/`.
+Live and catalog pages share the workspace. Asset-only lighting/encoder previews may appear even
+without a device driver; hardware actions require the live entry's lighting capability. Input received
+by the focused window is used transiently for per-node key glow/depression and never enters reports,
+storage or transport. The global input hook and HID key capture are intentionally absent.
+
+`viewer/preview.rs` interprets visual bindings; the GLB reader retains node identity per vertex.
+Texture cache keys include quantized camera focus/zoom and per-part lighting/depression. The previous
+CPU renderer used up to eight scoped row workers with 2x2 supersampling; it remains a reference path
+for contexts without an installed GPU backend. Native windows always install the wgpu backend.
+
+Historical CPU workspace review on 2026-10-28 (`--review verification/device-workspace`): large-scene motion
+still exceeds a 16.7 ms frame budget. The banded renderer approximately halves the original wide-view
+cost while retaining full resolution, but this is not a 60 fps implementation. Per-scene means/maxima
+are saved beside the screenshots. Timings measure egui update and CPU rasterization, excluding PNG
+export, presentation and OS compositing; native-window CPU/memory and live frame rate were not measured.
+Every workspace scene must request no further repaint after settling; this is a scheduling check,
+not a live Task Manager measurement. Encoder zoom, lighting, settings, reversal, focused-key highlights
+and the 520 px minimum height are included. The current GPU suite contains 31 scenes at three widths
+(`verification/gpu-checked/complete.json`), including pointer tracking after lighting/encoder zoom.
+
+Lighting fidelity revision (2026-10-28): `viewer/led.rs` prepares legend apertures from the built-in
+atlas and four local emitter weights per vertex once during asset loading. Emitters are below the
+keycaps, so upward-facing plastic does not receive a uniform diffuse tint. Both renderers use
+perspective-correct texture interpolation; the 1536 px keyboard atlas is retained instead of being
+halved to 768 px. Visible socket and legend emission feeds a bounded, quarter-resolution separable
+bloom pass. This is a local illumination approximation, without ray-traced shadows or measured cap
+transmission. The native GPU path adds GGX material shading, a filtered shadow map, screen-space
+contact shading, 4x MSAA and anisotropic mip sampling. Emission, bloom, camera changes and key
+depression all remain texture-cached at rest. GPU structure and measurements: `GPU-PERFORMANCE.md`.
+
+`widgets/lighting_palette.rs` owns hue-only LED colors. Its private palette guarantees full value and
+independent ring editing. The old HSV plane and hex-entry widget were removed because they allowed
+black/dim colors and no longer had consumers. Solid/Reactive expose one color and Wave three. Driver
+write actions receive only the first Solid color, after the same explicit button and backup checks.
+`--review DIR [SCENE_PREFIX]` optionally restricts the offline suite for focused visual checks.
+
+AJ159 validation (2026-10-28): `--review verification/aj159` completed with exit code 0.
+Catalog and placeholder passport images were visually checked at 720, 1040 and 1600 px.
+The integrated GLB is 15,670,536 bytes; the existing on-demand loader and pose texture cache are reused.
+Live hover frame time and working-set growth with this larger model have not been measured.
+
+### Continuous device return and model bounce (2026-10-28)
+
+The source list blocks input without egui's disabled alpha and restores its explicit dimming along
+the surface spring. Its tile chrome stays present; only the selected stage transfers to the detail
+page. A smoothstep fade over the last 22% of surface travel exposes labels before the handoff.
+The Refresh button retains its visual state while passive, avoiding a final disabled-to-enabled pop.
+A separate model spring (`T=0.52 s`, damping `0.85`) provides about 0.6% overshoot on opening;
+return retargets both springs without resetting velocity. The background does not overshoot.
+`--review verification/device-return-bounce-final` adds late-return frames at all three widths. In
+the hardware-free traces, mean update/render time was 10.7-17.7 ms, maximum 25.2 ms; all six traces settled with no further repaint requested. These timings exclude
+presentation and do not establish live FPS. Unit tests check handoff opacity limits, model overshoot,
+velocity preservation and reduced motion. No device protocol or hardware operations changed.
+
+### Battery discovery snapshots (2026-10-28)
+
+`core::Detail::Battery` carries a reported percentage and `Detail::Power` a generic power source;
+neither establishes active charging. The BY Tech wired and radio implementations share a pure
+battery payload parser, with separate wire codecs and read paths in `drivers/by_tech/`. Radio is a
+read-only `Device` with no `Lighting` implementation. Both remain behind the existing experimental
+driver setting. Snapshots refresh only through discovery; no timer, idle thread or polling is added.
+The passive probe records radio descriptors only, while `--lighting-probe by_tech` exercises the
+radio discovery read; this avoids reading the same descriptor twice in one diagnostic enumeration.
+
+### Live battery scheduling (owner-requested exception, 2026-10-28)
+
+The owner explicitly requested current battery data with adaptive polling, superseding the older
+battery-only snapshot restriction. `core::Battery` is an optional capability. `app/session/battery.rs`
+transfers available devices into short-lived read jobs through the existing Events channel, excluding
+concurrent discovery and lighting operations. `ui/app/battery.rs` schedules only deadline repaints:
+5 seconds visible, 300 seconds minimized, immediate restore, 60-second failure backoff visible.
+Devices without the capability create no telemetry wakeups. `--review` never starts telemetry.
+Radio descriptor validation happens only when creating the session; refresh uses no descriptor,
+settings read or global USB enumeration. HID channels close at the end of each operation.
+
+### Per-device telemetry and user presets (2026-10-28)
+
+The earlier global battery deadline is replaced by individual clocks in `app/battery.rs` and a
+bounded dispatcher in `app/session/battery.rs`. At most one telemetry operation is in flight, also
+serializing shared receivers. Completion is delivered per device; an unresponsive unit no longer
+holds an entire batch's results or changes other devices' retry deadlines. Errors back off per device
+(up to 15 minutes, never faster than its selected interval). Restore/mode changes stagger requests.
+Last successful values and monotonic timestamps are retained separately from the current display;
+failed reads still do not present stale percentages as fresh. The future tray can access those values.
+
+Settings persist one global mode (legacy settings default to Automatic):
+
+| Mode | Open device card | Other pages/devices | Background on battery | Background while charging |
+| --- | --- | --- | --- | --- |
+| Automatic | 5 s | 60 s | 5 min | 1 min |
+| Responsive | 2 s | 30 s | 2 min | 30 s |
+| Eco | 15 s | 120 s | 15 min | 5 min |
+
+Charging intervals use external power and a reported percentage below 100. There is no notification
+requirement. Restoring the window requests an immediate staggered refresh. A hidden/minimized frame
+processes events and deadlines but skips construction of the shell, pages and device models. The
+public `App::set_window_hidden` hook supports a future tray hide operation independently of the native
+minimized flag; native tray icons themselves are not implemented by this change. Worker completion
+still wakes the event loop to return device ownership and dispatch the next due read; no permanent
+worker, per-device timer thread, global USB rescan, or repeated descriptor read is introduced.

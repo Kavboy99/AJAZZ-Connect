@@ -39,12 +39,23 @@ pub enum Outcome {
     Released,
 }
 
-/// Solid-color lighting. A device that has no lighting simply does not return this capability.
+/// Lighting and optional native programs. A device without lighting omits this capability.
 pub trait Lighting {
     fn traits(&self) -> LightingTraits;
+    /// Cached during discovery or the last confirmed operation; never performs IO.
+    fn editor(&self) -> Option<super::LightingEditor> {
+        None
+    }
+    fn apply_settings(&mut self, _: super::LightingSettings) -> Result<Outcome, DriverError> {
+        Err(DriverError::rejected("lighting programs are unavailable"))
+    }
     fn apply_solid(&mut self, color: Rgb) -> Result<Outcome, DriverError>;
     /// Undo the changes made in this session.
     fn restore(&mut self) -> Result<Outcome, DriverError>;
     /// Restore from a backup file; only for `Rollback::SessionAndFile`.
     fn restore_snapshot(&mut self, snapshot: &Snapshot) -> Result<Outcome, DriverError>;
+}
+/// A short read of an already identified device; refreshes its descriptor without rediscovery.
+pub trait Battery {
+    fn refresh_battery(&mut self) -> Result<(), super::DriverError>;
 }

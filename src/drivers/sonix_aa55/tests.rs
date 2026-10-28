@@ -133,6 +133,12 @@ fn discovery_only_reads_and_backup_precedes_the_first_write() {
     let bus: Arc<dyn Bus> = fake.clone();
     let mut found = Aa55Driver.discover(&bus);
     assert_eq!(found.devices.len(), 1, "{:?}", found.notes);
+    assert!(
+        found.devices[0]
+            .descriptor()
+            .details
+            .contains(&Detail::Battery(0))
+    );
     let commands = |log: &[Packet]| -> Vec<u8> {
         log.iter()
             .filter_map(|p| match p {

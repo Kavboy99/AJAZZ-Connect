@@ -114,6 +114,13 @@ pub mod size {
     pub const READABLE_WIDTH: f32 = 640.0;
     /// Device tiles never get narrower; the grid adds a column when two more fit.
     pub const DEVICE_TILE_MIN: f32 = 224.0;
+    pub const DEVICE_HERO_HEIGHT: f32 = 320.0;
+    pub const STUDIO_PANEL: f32 = 300.0;
+    pub const STUDIO_ISLAND: f32 = 220.0;
+    pub const STUDIO_ISLAND_COMPACT: f32 = 184.0;
+    pub const HUE_WHEEL: f32 = 280.0;
+    pub const HUE_RING: f32 = 20.0;
+    pub const STUDIO_SHORT_HEIGHT: f32 = 620.0;
 }
 
 /// Adaptive layout (`docs/DESIGN.md`, section 5.1). Window widths follow the WinUI size classes;
@@ -133,6 +140,10 @@ pub mod radius {
 }
 
 pub mod motion {
+    /// The source list brightens continuously as the device surface returns to its tile.
+    pub const DEVICE_LIST_DIM: f32 = 0.4;
+    /// The shared surface dissolves over the last part of the trip, exposing tile labels.
+    pub const DEVICE_TILE_HANDOFF: f32 = 0.22;
     /// Press feedback scale.
     pub const PRESS_SCALE: f32 = 0.97;
     /// Rise of an entering page.

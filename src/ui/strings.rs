@@ -1,7 +1,7 @@
 //! Every user-facing string. Russian is the current default; translating the interface means
 //! translating this file. Error texts name the cause and the action (`docs/DESIGN.md`, section 10).
 
-use crate::core::{Detail, DeviceKind, DriverError, Maturity, Outcome, Requirement};
+use crate::core::{Detail, DeviceKind, DriverError, Maturity, Outcome, PowerSource, Requirement};
 
 pub const NAV_DEVICES: &str = "Устройства";
 pub const NAV_DIAGNOSTICS: &str = "Диагностика";
@@ -28,15 +28,15 @@ pub const DEVICE_DORMANT_HINT: &str = "Устройство распознано
 pub const DEVICE_OPEN_SETTINGS: &str = "Открыть настройки";
 pub const EXPERIMENTAL: &str = "Экспериментально";
 
-pub const ABOUT_DEVICE: &str = "Об устройстве";
 pub const LIGHTING: &str = "Подсветка";
 pub const LIGHTING_APPLY: &str = "Применить цвет";
+pub const LIGHTING_APPLY_PROGRAM: &str = "Применить";
 pub const LIGHTING_RESTORE: &str = "Вернуть подсветку";
 pub const LIGHTING_FROM_BACKUP: &str = "Из резервной копии…";
 pub const LIGHTING_BACKUP_FILTER: &str = "Резервная копия подсветки";
 pub const LIGHTING_COLOR: &str = "Цвет";
 pub const LIGHTING_RUNNING: &str = "Обмен с устройством…";
-pub const LIGHTING_PERSISTENT: &str = "Цвет сохраняется в памяти устройства.";
+pub const LIGHTING_PERSISTENT: &str = "Подсветка сохраняется в памяти устройства.";
 pub const LIGHTING_BACKUP_FIRST: &str =
     "Перед первой записью исходное состояние сохраняется в резервную копию.";
 pub const LIGHTING_NO_ROLLBACK: &str = "Отката нет: этот протокол не считывает исходный эффект. Вернуть режим можно сочетанием клавиш на устройстве.";
@@ -115,8 +115,6 @@ pub fn maturity(maturity: Maturity) -> &'static str {
     }
 }
 
-pub const LABEL_KIND: &str = "Тип";
-pub const LABEL_VENDOR: &str = "Производитель";
 pub const LABEL_DRIVER: &str = "Драйвер";
 pub const LABEL_FIRMWARE: &str = "Прошивка";
 
@@ -126,6 +124,8 @@ pub fn detail(detail: &Detail) -> (&'static str, String) {
         Detail::Usb { vid, pid } => ("USB", format!("{vid:04X}:{pid:04X}")),
         Detail::Firmware(version) => (LABEL_FIRMWARE, version.clone()),
         Detail::Release(release) => ("bcdDevice", format!("{release:04X}")),
+        Detail::Battery(percent) => (LABEL_BATTERY, battery(*percent)),
+        Detail::Power(source) => (LABEL_POWER, power(*source).into()),
         Detail::Leds(count) => ("Светодиоды", count.to_string()),
     }
 }
@@ -189,5 +189,124 @@ pub fn outcome(outcome: Outcome) -> String {
         Outcome::ServiceConfirmed => "Служба подтвердила новый цвет. Проверьте результат на устройстве.".into(),
         Outcome::Restored => "Исходная подсветка восстановлена.".into(),
         Outcome::Released => "Устройству возвращено собственное управление подсветкой.".into(),
+    }
+}
+pub const SETTINGS_DEVELOPER: &str = "Режим разработчика";
+pub const SETTINGS_ALL_DEVICES: &str = "Показывать все поддерживаемые устройства";
+pub const SETTINGS_DEVELOPER_HINT: &str =
+    "Каталог устройств для проверки дизайна без подключения оборудования.";
+pub const DEVICE_CATALOG: &str = "Поддерживается · Предпросмотр";
+pub const DEVICE_MULTIPLE_DRIVERS: &str = "Несколько драйверов";
+pub const DEVICE_PREVIEW_DRIVER: &str = "Драйвер для предпросмотра";
+pub const DEVICE_PREVIEW_VARIANTS: &str = "Предпросмотр вариантов драйвера";
+
+pub const DEVICE_CONNECTED: &str = "Подключено";
+pub const DEVICE_BATTERY_UNKNOWN: &str = "Заряд недоступен";
+
+pub const LABEL_BATTERY: &str = "Заряд";
+pub const LABEL_POWER: &str = "Питание";
+pub fn power(source: PowerSource) -> &'static str {
+    match source {
+        PowerSource::Battery => "От батареи · не заряжается",
+        PowerSource::External => "Внешнее питание",
+        PowerSource::Unknown => "Статус питания неизвестен",
+    }
+}
+pub fn battery(percent: u8) -> String {
+    format!("{percent}%")
+}
+
+pub const DEVICE_NO_DRIVER: &str = "Не добавлен";
+pub const DEVICE_PLACEHOLDER: &str = "Заглушка · предпросмотр";
+
+pub fn battery_status(percent: Option<u8>, source: Option<PowerSource>) -> String {
+    let Some(percent) = percent else {
+        return DEVICE_BATTERY_UNKNOWN.into();
+    };
+    let state = match source {
+        Some(PowerSource::External) if percent == 100 => "Заряжено",
+        Some(PowerSource::External) => "Заряжается",
+        Some(PowerSource::Battery) => "Не заряжается",
+        _ => "",
+    };
+    if state.is_empty() {
+        format!("{percent}%")
+    } else {
+        format!("{percent}% · {state}")
+    }
+}
+
+pub const SETTINGS_BATTERY: &str = "Заряд устройств";
+pub fn battery_mode_name(mode: crate::app::battery::BatteryMode) -> &'static str {
+    use crate::app::battery::BatteryMode;
+    match mode {
+        BatteryMode::Automatic => "Автоматически",
+        BatteryMode::Responsive => "Быстро",
+        BatteryMode::Eco => "Экономно",
+    }
+}
+pub fn battery_mode_hint(mode: crate::app::battery::BatteryMode) -> &'static str {
+    use crate::app::battery::BatteryMode;
+    match mode {
+        BatteryMode::Automatic => "Карточка: 5 с. В фоне: 5 мин от батареи, 1 мин при зарядке.",
+        BatteryMode::Responsive => "Карточка: 2 с. В фоне: 2 мин от батареи, 30 с при зарядке.",
+        BatteryMode::Eco => "Карточка: 15 с. В фоне: 15 мин от батареи, 5 мин при зарядке.",
+    }
+}
+pub const STUDIO_LIGHTING: &str = "Настроить подсветку";
+pub const STUDIO_ENCODER: &str = "Настроить энкодер";
+pub const STUDIO_PREVIEW: &str = "Предпросмотр · без записи в устройство";
+pub const STUDIO_KEYS: &str = "Нажимайте клавиши в этом окне — модель откликнется";
+pub const STUDIO_SETTINGS: &str = "Настройки";
+pub const STUDIO_CLOSE_SETTINGS: &str = "Скрыть настройки";
+pub const STUDIO_CLOSE_EDITOR: &str = "Закрыть редактор";
+pub const STUDIO_HUE_HINT: &str = "Каждое кольцо — отдельный цвет подсветки";
+pub const STUDIO_SOLID: &str = "Постоянный";
+pub const STUDIO_WAVE: &str = "Волна";
+pub const STUDIO_REACTIVE: &str = "Отклик";
+pub const STUDIO_VOLUME: &str = "Громкость";
+pub const STUDIO_SCROLL: &str = "Прокрутка";
+pub const STUDIO_BRIGHTNESS: &str = "Яркость";
+pub const STUDIO_REPLAY: &str = "Демонстрация";
+pub const STUDIO_ENCODER_HINT: &str = "Назначение энкодера пока доступно только в предпросмотре.";
+pub const STUDIO_ENCODER_STEP: &str = "Шаг поворота";
+pub const STUDIO_ENCODER_PRESS: &str = "Нажатие";
+pub const STUDIO_ENCODER_MUTE: &str = "Выключить звук";
+pub const STUDIO_ENCODER_PAUSE: &str = "Пауза / продолжить";
+pub const STUDIO_ENCODER_DEFAULT: &str = "Стандартное действие";
+pub const STUDIO_DEVICE_WRITE: &str = "Применение к устройству";
+pub const STUDIO_EFFECT_PREVIEW: &str = "Этот эффект пока доступен только на модели.";
+pub const STUDIO_MORE: &str = "Сведения";
+pub const LIGHTING_SPEED: &str = "Скорость";
+pub const LIGHTING_DRAFT_HINT: &str = "Изменения отправляются кнопкой «Применить».";
+pub const LIGHTING_NATIVE_PREVIEW: &str = "Условный предпросмотр. Эффект исполняется клавиатурой.";
+pub const LIGHTING_CONNECT_USB: &str = "Для управления подсветкой подключите клавиатуру USB-кабелем и включите проводной режим. Сейчас доступен только предпросмотр.";
+pub const LIGHTING_OFFLINE_CONTROLS: &str = "Предпросмотр настроек драйвера. Для записи откройте подключённое устройство; значения здесь примерные.";
+pub const LIGHTING_PREVIEW_VALUES: &str =
+    "Примерные настройки драйвера; состояние подсветки клавиатуры не считано.";
+pub const LIGHTING_PREVIEW_ONLY: &str = "Изменения видны только на модели.";
+
+pub fn lighting_effect(effect: crate::core::LightingEffect) -> &'static str {
+    use crate::core::LightingEffect as E;
+    match effect {
+        E::Solid => "Постоянный",
+        E::Rainbow => "Радуга",
+        E::Breathing => "Дыхание",
+        E::Flash => "Вспышки",
+        E::Rain => "Капли дождя",
+        E::RainbowWheel => "Радужное колесо",
+        E::Ripples => "Круги",
+        E::Stars => "Мерцание звёзд",
+        E::Fade => "Затухание",
+        E::Snake => "Змейка",
+        E::Neon => "Неоновый поток",
+        E::Reactive => "Отклик",
+        E::Sine => "Синусоида",
+        E::Scan => "Сканирование",
+        E::Windmill => "Ветряная мельница",
+        E::Waterfall => "Цветной водопад",
+        E::Blossom => "Цветение",
+        E::Storm => "Вихрь",
+        E::Off => "Выключено",
     }
 }

@@ -1,3 +1,4 @@
+mod controls;
 use super::backup::Backup;
 use super::codec::{self, Command, PASSWORDS, REPORT_BYTES, REPORT_ID};
 use super::state::{ColorTable, Config};
@@ -5,8 +6,7 @@ use super::{ID, admits, descriptor};
 use crate::app::identity;
 use crate::core::{
     Bus, Device, DeviceDescriptor, Discovery, Driver, DriverError, DriverInfo, Endpoint, Guard,
-    HidChannel, Identification, Lighting, LightingTraits, Maturity, Note, Outcome, Rgb, Rollback,
-    Snapshot,
+    HidChannel, Identification, Lighting, Maturity, Note, Outcome, Rgb,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,8 +31,12 @@ impl Driver for ByTechDriver {
         INFO
     }
 
+    fn lighting_preview(&self) -> Option<crate::core::LightingPreview> {
+        Some(super::lighting::preview())
+    }
+
     fn admits(&self, endpoint: &Endpoint) -> bool {
-        admits(endpoint)
+        admits(endpoint) || super::radio::admits(endpoint)
     }
 
     fn discover(&self, bus: &Arc<dyn Bus>) -> Discovery {
@@ -46,6 +50,10 @@ impl Driver for ByTechDriver {
                 }),
             }
         }
+        // A passive USB match must not hide a usable receiver when wired confirmation fails.
+        if found.devices.is_empty() {
+            super::radio::discover(bus, INFO, &mut found);
+        }
         found
     }
 
@@ -54,6 +62,10 @@ impl Driver for ByTechDriver {
         bus: &dyn Bus,
         endpoint: &Endpoint,
     ) -> Option<Result<Identification, DriverError>> {
+        if super::radio::admits(endpoint) {
+            // The passive probe records its descriptor; discovery performs the radio battery read.
+            return None;
+        }
         admits(endpoint).then(|| {
             let _lease = bus.lock(&lock_name(endpoint))?;
             let channel = bus.open_hid(endpoint)?;
@@ -71,6 +83,9 @@ impl Driver for ByTechDriver {
                 details["config_valid"] = Config::parse(&raw).is_ok().into();
                 details["effect"] = raw[0x0a].into();
                 payload.extend_from_slice(&raw);
+                if password == PASSWORDS[1] && endpoint.release == 0x0100 {
+                    super::battery::identify(channel.as_ref(), &mut details);
+                }
             }
             Ok(Identification {
                 driver: ID.into(),
@@ -84,7 +99,7 @@ impl Driver for ByTechDriver {
     }
 }
 
-fn lock_name(endpoint: &Endpoint) -> String {
+pub(super) fn lock_name(endpoint: &Endpoint) -> String {
     format!(
         "Local\\{}-{}",
         identity::LOCK_PREFIX,
@@ -94,7 +109,7 @@ fn lock_name(endpoint: &Endpoint) -> String {
 
 /// A read request, then its answer. A failed read changes nothing and may be repeated by the
 /// user; this function itself never repeats.
-fn read(channel: &dyn HidChannel, command: Command) -> Result<Vec<u8>, DriverError> {
+pub(super) fn read(channel: &dyn HidChannel, command: Command) -> Result<Vec<u8>, DriverError> {
     channel.send_feature(&codec::request(command)?)?;
     std::thread::sleep(REPLY_DELAY);
     let mut report = [0; REPORT_BYTES];
@@ -119,19 +134,20 @@ fn read_blocks(channel: &dyn HidChannel) -> Result<(Config, ColorTable), DriverE
 }
 
 /// One operation's hold on the device; the channel closes before the lock is released.
-struct Exchange {
-    channel: Box<dyn HidChannel>,
+pub(super) struct Exchange {
+    pub(super) channel: Box<dyn HidChannel>,
     _lease: Box<dyn Guard>,
 }
 
 pub(super) struct ByTechDevice {
     bus: Arc<dyn Bus>,
     endpoint: Endpoint,
-    descriptor: DeviceDescriptor,
+    pub(super) descriptor: DeviceDescriptor,
     identity: String,
     protocol_identity: String,
     lock: String,
     original: Option<(Config, ColorTable)>,
+    cached: Config,
 }
 
 impl ByTechDevice {
@@ -142,16 +158,21 @@ impl ByTechDevice {
         let channel = bus.open_hid(&endpoint)?;
         let protocol_identity = Self::password(channel.as_ref(), &endpoint)?;
         std::thread::sleep(COMMAND_GAP);
-        read_blocks(channel.as_ref())?;
+        let (cached, _) = read_blocks(channel.as_ref())?;
+        let mut descriptor = descriptor(&endpoint, INFO);
+        if protocol_identity == "03000000015e-0100" {
+            super::battery::append(channel.as_ref(), &mut descriptor);
+        }
         drop(channel);
         Ok(Self {
             identity: endpoint.fingerprint(),
-            descriptor: descriptor(&endpoint, INFO),
+            descriptor,
             bus,
             endpoint,
             protocol_identity,
             lock,
             original: None,
+            cached,
         })
     }
 
@@ -171,7 +192,7 @@ impl ByTechDevice {
         ))
     }
 
-    fn exchange(&self) -> Result<Exchange, DriverError> {
+    pub(super) fn exchange(&self) -> Result<Exchange, DriverError> {
         let lease = self.bus.lock(&self.lock)?;
         let channel = self.bus.open_hid(&self.endpoint)?;
         if Self::password(channel.as_ref(), &self.endpoint)? != self.protocol_identity {
@@ -205,45 +226,35 @@ impl ByTechDevice {
         }
     }
 
-    fn restore_to(&self, target: &(Config, ColorTable)) -> Result<Outcome, DriverError> {
+    fn restore_to(&mut self, target: &(Config, ColorTable)) -> Result<Outcome, DriverError> {
         let exchange = self.exchange()?;
         let channel = exchange.channel.as_ref();
         let current = read_blocks(channel)?;
         std::thread::sleep(COMMAND_GAP);
-        Self::write_blocks(channel, &current, target).map(|outcome| match outcome {
+        let result = Self::write_blocks(channel, &current, target)?;
+        self.cached = target.0.clone();
+        Ok(match result {
             Outcome::Confirmed => Outcome::Restored,
             other => other,
         })
     }
-}
 
-impl Device for ByTechDevice {
-    fn descriptor(&self) -> &DeviceDescriptor {
-        &self.descriptor
-    }
-
-    fn lighting(&mut self) -> Option<&mut dyn Lighting> {
-        Some(self)
-    }
-}
-
-impl Lighting for ByTechDevice {
-    fn traits(&self) -> LightingTraits {
-        LightingTraits {
-            writable: true,
-            persistent: true,
-            rollback: Rollback::SessionAndFile,
-        }
-    }
-
-    fn apply_solid(&mut self, color: Rgb) -> Result<Outcome, DriverError> {
+    fn apply_target(
+        &mut self,
+        settings: Option<crate::core::LightingSettings>,
+        color: Rgb,
+    ) -> Result<Outcome, DriverError> {
         let exchange = self.exchange()?;
         let channel = exchange.channel.as_ref();
         let current = read_blocks(channel)?;
-        let target = (
-            current.0.solid(),
-            current.1.with_static_color(color.to_array()),
-        );
+        let target = if let Some(settings) = settings {
+            super::lighting::target(&current, settings)?
+        } else {
+            (
+                current.0.solid(),
+                current.1.with_static_color(color.to_array()),
+            )
+        };
         if self.original.is_none() {
             let backup = Backup::new(
                 &self.identity,
@@ -256,17 +267,21 @@ impl Lighting for ByTechDevice {
             self.original = Some(current.clone());
         }
         std::thread::sleep(COMMAND_GAP);
-        Self::write_blocks(channel, &current, &target)
+        let outcome = Self::write_blocks(channel, &current, &target)?;
+        self.cached = target.0;
+        Ok(outcome)
+    }
+}
+
+impl Device for ByTechDevice {
+    fn battery(&mut self) -> Option<&mut dyn crate::core::Battery> {
+        (self.protocol_identity == "03000000015e-0100").then_some(self)
+    }
+    fn descriptor(&self) -> &DeviceDescriptor {
+        &self.descriptor
     }
 
-    fn restore(&mut self) -> Result<Outcome, DriverError> {
-        let original = self.original.clone().ok_or(DriverError::NoRollback)?;
-        self.restore_to(&original)
-    }
-
-    fn restore_snapshot(&mut self, snapshot: &Snapshot) -> Result<Outcome, DriverError> {
-        let backup: Backup = snapshot.parse()?;
-        let target = backup.blocks(&self.identity, &self.protocol_identity)?;
-        self.restore_to(&target)
+    fn lighting(&mut self) -> Option<&mut dyn Lighting> {
+        Some(self)
     }
 }

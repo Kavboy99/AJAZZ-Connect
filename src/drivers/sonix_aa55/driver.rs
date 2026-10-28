@@ -156,6 +156,7 @@ impl Aa55Device {
         descriptor
             .details
             .push(Detail::Firmware(info.version.clone()));
+        descriptor.details.push(Detail::Battery(info.battery));
         Ok(Self {
             identity: endpoint.fingerprint(),
             bus,

@@ -1,9 +1,6 @@
 # Источники и лицензии
 
-Реализации Rust в src/ написаны в этом проекте по форматам протоколов, а не скопированы
-из OpenRGB или других проектов. OpenRGB не встроен в EXE: используется опубликованный
-TCP SDK. Сохранённые исходники OpenRGB не компилируются в приложение и остаются
-под своей GPL.
+Project-owned Rust protocol implementations are written from protocol descriptions. Third-party dependency and reference licenses remain applicable; the proprietary device-control architecture does not replace those obligations.
 
 Эталон tests/fixtures/microsoft-lamparray-descriptor.bin извлечён без изменения байтов
 из LampArrayReportDescriptor.h проекта Microsoft ArduinoHidForWindows (MIT):
@@ -82,3 +79,25 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Hugeicons Free 4.3.5 Stroke Rounded: added `BatteryEmptyIcon` in `src/ui/icons/glyphs.rs`, under the same MIT license as the existing glyphs. Source: https://cdn.jsdelivr.net/npm/@hugeicons/core-free-icons@4.3.5/dist/esm/BatteryEmptyIcon.js
+
+AJ159 preview: `assets/models/aj159.glb` is the mouse-and-dock model supplied by the repository owner
+for this integration on 2026-10-28 (GLTFExporter r170). Original supplied SHA256:
+`F3FAA7EAD4185AD7FE0C74680AE88E402936974CBC1B42ADF847E7E7F6BB08FB`.
+No independent authorship or redistribution license was supplied; this entry records provenance only.
+
+The integrated model swaps the mouse/dock positions and turns the dock screen toward the viewer.
+Only the two assembly transforms changed; geometry, materials and textures are preserved.
+Integrated SHA256: `448A17F9ADA3AA27065355239C2FB37F903BF9E0E9D24ABD7E85E1D645DD1B83`.
+
+Battery protocol research references: `leisiji/AulaSofwareLinux` (`src/proto.rs`, MIT) and
+`deepan-alve/womier-l65-linux` (`linux/l65ctl.py`, MIT). Preserved reference files and their licenses
+are under `research/sources/`; SHA256 hashes and source URLs are in `research/SOURCE-MANIFEST.json`.
+Only protocol facts are used by the application's own Rust implementation; these references are
+neither linked into nor executed by the application.
+
+GPU rendering dependencies: wgpu 27.0.1 and its shader compiler naga 27.0.3 (MIT OR Apache-2.0),
+pollster 0.4.0 (Apache-2.0/MIT), and bytemuck 1.25.2 (Zlib OR Apache-2.0 OR MIT). Exact transitive
+versions are pinned in Cargo.lock. Licenses and upstream notices are supplied by each cached crate's
+Cargo.toml and license files. The project's WGSL shaders and rendering host are original code.

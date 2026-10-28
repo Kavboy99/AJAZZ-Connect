@@ -25,6 +25,7 @@ pub const PASSWORDS: [[u8; PASSWORD_BYTES]; 2] = [
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
     ReadPassword,
+    ReadPower,
     ReadConfig,
     WriteConfig,
     ReadColors,
@@ -35,6 +36,7 @@ impl Command {
     fn opcode(self) -> u8 {
         match self {
             Self::ReadPassword => 0x82,
+            Self::ReadPower => 0x87,
             Self::ReadConfig => 0x84,
             Self::WriteConfig => 0x04,
             Self::ReadColors => 0x8a,
@@ -44,13 +46,18 @@ impl Command {
 
     /// The vendor sends sub-index 1 only with the password request.
     fn sub_index(self) -> u8 {
-        u8::from(self == Self::ReadPassword)
+        match self {
+            Self::ReadPassword => 1,
+            Self::ReadPower => 2,
+            _ => 0,
+        }
     }
 
     /// Fixed transfer length; anything else is refused.
     pub fn length(self) -> usize {
         match self {
             Self::ReadPassword => PASSWORD_BYTES,
+            Self::ReadPower => 2,
             Self::ReadConfig | Self::WriteConfig => super::state::CONFIG_BYTES,
             Self::ReadColors | Self::WriteColors => super::state::COLOR_TABLE_BYTES,
         }
@@ -101,6 +108,9 @@ pub fn reply(report: &[u8], command: Command) -> Result<&[u8], DriverError> {
         && report.len() <= REPORT_BYTES
         && report[0] == REPORT_ID
         && report[1] == command.opcode();
+    let framed = framed
+        && (command != Command::ReadPower
+            || report[..HEADER_BYTES] == header(command)[..HEADER_BYTES]);
     if !framed {
         // The size and the first bytes go to the diagnostic report: they show what the frame was.
         return Err(DriverError::protocol(format!(

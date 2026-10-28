@@ -4,39 +4,22 @@
 
 use super::glb::{Image, Scene};
 use super::light::{Lit, Rig, to_linear, to_srgb};
-use super::math::{self, Mat4, Vec3};
+use super::math::{self, Vec3};
 use eframe::egui::ColorImage;
 use std::sync::OnceLock;
+mod bloom;
+mod camera;
+mod target;
+use camera::Camera;
+use target::Target;
 
-const FIELD_OF_VIEW: f32 = 0.42;
-/// Distance at which a unit sphere just fits, times a margin for the lift and the tilt.
-const FIT_MARGIN: f32 = 1.1;
-/// How high a fully lifted model floats, in model radii.
-const LIFT: f32 = 0.06;
 const SRGB_STEPS: usize = 4096;
-
-/// While the pose moves, a half-resolution image keeps the frame cheap (the texture filter and
-/// the motion hide it); at rest the view is drawn once more with 2×2 samples per pixel so edges and
-/// key legends are smooth.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Quality {
-    Draft,
-    Fine,
-}
-
-impl Quality {
-    /// Output side and samples per output pixel along each axis.
-    fn layout(self, side: usize) -> (usize, usize) {
-        match self {
-            Self::Draft => (side.div_ceil(2), 1),
-            Self::Fine => (side, 2),
-        }
-    }
-}
 
 /// How the model is held. Angles in radians; `lift` and `glow` in 0..1.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
+    pub zoom: f32,
+    pub focus: Vec3,
     pub yaw: f32,
     pub pitch: f32,
     pub lift: f32,
@@ -67,45 +50,12 @@ struct Projected {
     x: f32,
     y: f32,
     z: f32,
+    inv_w: f32,
     uv: [f32; 2],
     lit: Lit,
 }
 
-struct Camera {
-    model: Mat4,
-    /// Model to clip space in one matrix.
-    mvp: Mat4,
-    half: f32,
-}
-
-impl Camera {
-    fn new(scene: &Scene, pose: &Pose, side: usize) -> Self {
-        let distance = FIT_MARGIN / (FIELD_OF_VIEW / 2.0).sin();
-        let normalize = math::mul(
-            &math::scale(1.0 / scene.radius),
-            &math::translation([-scene.center[0], -scene.center[1], -scene.center[2]]),
-        );
-        let turn = math::mul(&math::rotation_x(pose.pitch), &math::rotation_y(pose.yaw));
-        let rise = math::translation([0.0, pose.lift * LIFT, 0.0]);
-        let model = math::mul(&rise, &math::mul(&turn, &normalize));
-        let clip = math::mul(
-            &math::perspective(FIELD_OF_VIEW, 1.0, distance - 2.0, distance + 2.0),
-            &math::translation([0.0, 0.0, -distance]),
-        );
-        Self {
-            mvp: math::mul(&clip, &model),
-            model,
-            half: side as f32 / 2.0,
-        }
-    }
-
-    fn project(&self, position: Vec3) -> [f32; 3] {
-        let p = math::transform_point(&self.mvp, position);
-        [(p[0] + 1.0) * self.half, (1.0 - p[1]) * self.half, p[2]]
-    }
-}
-
-fn sample(image: &Image, linear: &[f32; 256], uv: [f32; 2]) -> [f32; 4] {
+fn sample(image: &Image, linear: &[f32; 256], uv: [f32; 2]) -> ([f32; 4], f32) {
     let (w, h) = (image.width as usize, image.height as usize);
     let x = (uv[0].clamp(0.0, 1.0) * w as f32 - 0.5).clamp(0.0, (w - 1) as f32);
     let y = (uv[1].clamp(0.0, 1.0) * h as f32 - 0.5).clamp(0.0, (h - 1) as f32);
@@ -118,7 +68,7 @@ fn sample(image: &Image, linear: &[f32; 256], uv: [f32; 2]) -> [f32; 4] {
         (y1 * w + x0) * 4,
         (y1 * w + x1) * 4,
     ];
-    std::array::from_fn(|c| {
+    let rgba = std::array::from_fn(|c| {
         let texel = |at: usize| {
             let byte = image.rgba[at + c];
             if c == 3 {
@@ -130,7 +80,11 @@ fn sample(image: &Image, linear: &[f32; 256], uv: [f32; 2]) -> [f32; 4] {
         let top = texel(corners[0]) + (texel(corners[1]) - texel(corners[0])) * fx;
         let bottom = texel(corners[2]) + (texel(corners[3]) - texel(corners[2])) * fx;
         top + (bottom - top) * fy
-    })
+    });
+    let mask = |at: usize| image.legend.get(at / 4).copied().unwrap_or(0) as f32 / 255.0;
+    let top = mask(corners[0]) + (mask(corners[1]) - mask(corners[0])) * fx;
+    let bottom = mask(corners[2]) + (mask(corners[3]) - mask(corners[2])) * fx;
+    (rgba, top + (bottom - top) * fy)
 }
 
 struct Fill<'a> {
@@ -161,116 +115,43 @@ impl Edge {
     }
 }
 
-struct Target {
+/// The model in a square of `side` pixels on a transparent background.
+pub fn render(
+    scene: &Scene,
+    pose: &Pose,
     side: usize,
-    /// Straight linear color and coverage.
-    color: Vec<[f32; 4]>,
-    depth: Vec<f32>,
+    effects: &[super::preview::PartEffect],
+) -> ColorImage {
+    let workers = std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(8);
+    render_with_workers(
+        scene,
+        pose,
+        side,
+        effects,
+        if side >= 400 { workers } else { 1 },
+    )
 }
 
-impl Target {
-    fn triangle(&mut self, [a, b, c]: [&Projected; 3], fill: &Fill<'_>) {
-        let area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-        // Screen Y points down, so front faces (counter-clockwise in glTF) have negative area.
-        if area >= -f32::EPSILON {
-            return;
-        }
-        let limit = (self.side - 1) as f32;
-        let span = |lo: f32, hi: f32| {
-            (
-                lo.floor().clamp(0.0, limit) as usize,
-                hi.ceil().clamp(0.0, limit) as usize,
-            )
-        };
-        let (x0, x1) = span(a.x.min(b.x).min(c.x), a.x.max(b.x).max(c.x));
-        let (y0, y1) = span(a.y.min(b.y).min(c.y), a.y.max(b.y).max(c.y));
-        let (ea, eb) = (Edge::new(b, c, area), Edge::new(c, a, area));
-        let linear = &tables().linear;
-        for y in y0..=y1 {
-            let py = y as f32 + 0.5;
-            let row = y * self.side;
-            for x in x0..=x1 {
-                let px = x as f32 + 0.5;
-                let (wa, wb) = (ea.at(px, py), eb.at(px, py));
-                let wc = 1.0 - wa - wb;
-                if wa < 0.0 || wb < 0.0 || wc < 0.0 {
-                    continue;
-                }
-                let z = a.z * wa + b.z * wb + c.z * wc;
-                let at = row + x;
-                if z >= self.depth[at] {
-                    continue;
-                }
-                let texel = fill.texture.map_or([1.0; 4], |image| {
-                    let uv = std::array::from_fn(|i| a.uv[i] * wa + b.uv[i] * wb + c.uv[i] * wc);
-                    sample(image, linear, uv)
-                });
-                let alpha = texel[3] * fill.alpha;
-                if alpha <= 0.0 {
-                    continue;
-                }
-                let rgb: [f32; 3] = std::array::from_fn(|i| {
-                    let multiply =
-                        a.lit.multiply[i] * wa + b.lit.multiply[i] * wb + c.lit.multiply[i] * wc;
-                    let add = a.lit.add[i] * wa + b.lit.add[i] * wb + c.lit.add[i] * wc;
-                    texel[i] * multiply + add
-                });
-                let out = &mut self.color[at];
-                if fill.blend {
-                    for i in 0..3 {
-                        out[i] = rgb[i] * alpha + out[i] * (1.0 - alpha);
-                    }
-                    out[3] = alpha + out[3] * (1.0 - alpha);
-                } else {
-                    *out = [rgb[0], rgb[1], rgb[2], 1.0];
-                    self.depth[at] = z;
-                }
-            }
-        }
-    }
-
-    /// Box-filters `n`×`n` samples into each output pixel, in egui's premultiplied sRGB.
-    fn resolve(&self, side: usize, n: usize) -> ColorImage {
-        let srgb = &tables().srgb;
-        let count = (n * n) as f32;
-        let byte =
-            |linear: f32| srgb[(linear.clamp(0.0, 1.0) * (SRGB_STEPS - 1) as f32).round() as usize];
-        let mut pixels = Vec::with_capacity(side * side * 4);
-        for y in 0..side {
-            for x in 0..side {
-                let mut sum = [0.0; 4];
-                for sy in 0..n {
-                    let row = (y * n + sy) * self.side + x * n;
-                    for s in &self.color[row..row + n] {
-                        for i in 0..3 {
-                            sum[i] += s[i] * s[3];
-                        }
-                        sum[3] += s[3];
-                    }
-                }
-                let alpha = sum[3] / count;
-                for value in &sum[..3] {
-                    let straight = if sum[3] > 0.0 { value / sum[3] } else { 0.0 };
-                    pixels.push((f32::from(byte(straight)) * alpha).round() as u8);
-                }
-                pixels.push((alpha * 255.0).round() as u8);
-            }
-        }
-        ColorImage::from_rgba_premultiplied([side, side], &pixels)
-    }
+struct Draw<'a> {
+    projected: Vec<Projected>,
+    indices: &'a [u32],
+    fill: Fill<'a>,
 }
 
-/// The model in a square of `side` pixels (half of it for a draft) on a transparent background.
-pub fn render(scene: &Scene, pose: &Pose, side: usize, quality: Quality) -> ColorImage {
-    let (side, n) = quality.layout(side);
+fn render_with_workers(
+    scene: &Scene,
+    pose: &Pose,
+    side: usize,
+    effects: &[super::preview::PartEffect],
+    workers: usize,
+) -> ColorImage {
+    let n = 2;
     let samples = side * n;
     let camera = Camera::new(scene, pose, samples);
     let rig = Rig::new(pose.glow_color.map(|c| c * pose.glow));
-    let mut target = Target {
-        side: samples,
-        color: vec![[0.0; 4]; samples * samples],
-        depth: vec![f32::INFINITY; samples * samples],
-    };
+    let mut draws = Vec::with_capacity(scene.batches.len());
     for batch in &scene.batches {
         let m = &batch.material;
         let surface = rig.surface(m);
@@ -278,14 +159,31 @@ pub fn render(scene: &Scene, pose: &Pose, side: usize, quality: Quality) -> Colo
             .vertices
             .iter()
             .map(|v| {
-                let [x, y, z] = camera.project(v.position);
+                let effect = effects.get(v.part).copied().unwrap_or_default();
+                let mut position = v.position;
+                position[1] -= effect.press * scene.radius * 0.008;
+                let [x, y, z, inv_w] = camera.project(position);
                 let normal = math::transform_direction(&camera.model, v.normal);
+                let mut lit = rig.shade(normal, &surface);
+                for c in 0..3 {
+                    lit.emission[c] = effect.emission[c] * v.legend;
+                    if effect.socket {
+                        lit.add[c] += effect.emission[c];
+                        lit.glow[c] = effect.emission[c];
+                    }
+                    for (part, weight) in v.bounce {
+                        if let Some(source) = effects.get(part) {
+                            lit.add[c] += source.emission[c] * weight * m.color[c];
+                        }
+                    }
+                }
                 Projected {
                     x,
                     y,
                     z,
+                    inv_w,
                     uv: v.uv,
-                    lit: rig.shade(normal, &surface),
+                    lit,
                 }
             })
             .collect();
@@ -294,10 +192,114 @@ pub fn render(scene: &Scene, pose: &Pose, side: usize, quality: Quality) -> Colo
             alpha: m.color[3],
             blend: m.blend,
         };
-        for t in batch.indices.as_chunks::<3>().0 {
-            let corner = |i: u32| &projected[i as usize];
-            target.triangle([corner(t[0]), corner(t[1]), corner(t[2])], &fill);
-        }
+        draws.push(Draw {
+            projected,
+            indices: &batch.indices,
+            fill,
+        });
     }
-    target.resolve(side, n)
+    let band = |start: usize, rows: usize| {
+        let emission = effects.iter().any(|e| e.emission.iter().any(|v| *v > 0.0));
+        let mut target = Target::new(samples, start * n, rows * n, emission);
+        for draw in &draws {
+            for t in draw.indices.as_chunks::<3>().0 {
+                let corner = |i: u32| &draw.projected[i as usize];
+                target.triangle([corner(t[0]), corner(t[1]), corner(t[2])], &draw.fill);
+            }
+        }
+        target.resolve(side, n)
+    };
+    let result = if workers <= 1 {
+        Some(band(0, side))
+    } else {
+        // Bands share immutable geometry and retain triangle order. Threads exist only for this frame.
+        std::thread::scope(|scope| {
+            let rows = side.div_ceil(workers);
+            let jobs: Vec<_> = (0..side)
+                .step_by(rows)
+                .map(|start| {
+                    let band = &band;
+                    scope.spawn(move || band(start, rows.min(side - start)))
+                })
+                .collect();
+            let mut result = bloom::Band {
+                pixels: Vec::with_capacity(side * side),
+                glow: Vec::new(),
+            };
+            for job in jobs {
+                match job.join() {
+                    Ok(part) => {
+                        result.pixels.extend(part.pixels);
+                        result.glow.extend(part.glow);
+                    }
+                    Err(_) => return None,
+                }
+            }
+            Some(result)
+        })
+    };
+    match result {
+        Some(band) => bloom::finish(side, band),
+        None => render_with_workers(scene, pose, side, effects, 1),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bands_preserve_serial_pixels() {
+        let bytes = super::super::catalog::model_bytes("ak820-max").unwrap();
+        let scene = super::super::glb::parse(bytes).unwrap();
+        let pose = Pose {
+            zoom: 1.0,
+            focus: [0.0; 3],
+            yaw: -0.35,
+            pitch: 0.9,
+            lift: 0.0,
+            glow: 0.0,
+            glow_color: [0.0; 3],
+        };
+        assert_eq!(
+            render_with_workers(&scene, &pose, 96, &[], 1).pixels,
+            render_with_workers(&scene, &pose, 96, &[], 4).pixels
+        );
+    }
+    #[test]
+    fn emissive_legends_and_bloom_have_no_band_seams() {
+        let bytes = super::super::catalog::model_bytes("ak820-max").unwrap();
+        let mut scene = super::super::glb::parse(bytes).unwrap();
+        super::super::led::prepare(&mut scene, "ak820-max");
+        let preview = super::super::preview::Preview {
+            native: None,
+            brightness: 1.0,
+            effect: Some(super::super::preview::Effect::Solid),
+            colors: vec![eframe::egui::Color32::from_rgb(0, 190, 255)],
+            phase: 0.0,
+            keys: Default::default(),
+            modifiers: Default::default(),
+        };
+        let effects = super::super::preview::binding(Some("ak820-max"))
+            .unwrap()
+            .effects(&scene, &preview);
+        let pose = Pose {
+            zoom: 1.0,
+            focus: [0.0; 3],
+            yaw: 0.0,
+            pitch: 1.25,
+            lift: 0.0,
+            glow: 0.0,
+            glow_color: [0.0; 3],
+        };
+        let lit = render_with_workers(&scene, &pose, 128, &effects, 1);
+        assert_eq!(
+            lit.pixels,
+            render_with_workers(&scene, &pose, 128, &effects, 4).pixels
+        );
+        assert_ne!(
+            lit.pixels,
+            render_with_workers(&scene, &pose, 128, &[], 1).pixels
+        );
+    }
 }

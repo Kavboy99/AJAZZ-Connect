@@ -26,6 +26,7 @@ pub enum Icon {
     Lighting,
     Component,
     Plug,
+    Battery,
     Devices,
     Diagnostics,
     Settings,
@@ -47,10 +48,11 @@ pub enum Icon {
     Sun,
     /// Switch to the dark theme.
     Moon,
+    Close,
 }
 
 impl Icon {
-    const ALL: [Icon; 27] = [
+    const ALL: [Icon; 29] = [
         Icon::App,
         Icon::Keyboard,
         Icon::Mouse,
@@ -59,6 +61,7 @@ impl Icon {
         Icon::Lighting,
         Icon::Component,
         Icon::Plug,
+        Icon::Battery,
         Icon::Devices,
         Icon::Diagnostics,
         Icon::Settings,
@@ -78,6 +81,7 @@ impl Icon {
         Icon::Privacy,
         Icon::Sun,
         Icon::Moon,
+        Icon::Close,
     ];
 
     fn elements(self) -> &'static [Element] {
@@ -90,6 +94,7 @@ impl Icon {
             Icon::Lighting => glyphs::BULB,
             Icon::Component => glyphs::CPU,
             Icon::Plug => glyphs::PLUG,
+            Icon::Battery => glyphs::BATTERY_EMPTY,
             Icon::Devices => glyphs::USB,
             Icon::Diagnostics => glyphs::ACTIVITY,
             Icon::Settings => glyphs::SETTINGS,
@@ -109,6 +114,7 @@ impl Icon {
             Icon::Privacy => glyphs::SHIELD,
             Icon::Sun => glyphs::SUN_03,
             Icon::Moon => glyphs::MOON_02,
+            Icon::Close => glyphs::CANCEL_01,
         }
     }
 

@@ -1,3 +1,4 @@
+mod battery;
 use super::discovery;
 use super::events::{Discovered, DriverNote, Event, Events};
 use crate::core::{Device, DeviceDescriptor, DriverError, LightingTraits, Outcome, Rgb};
@@ -17,17 +18,44 @@ pub enum Status {
 pub struct Entry {
     descriptor: DeviceDescriptor,
     lighting: Option<LightingTraits>,
+    editor: Option<crate::core::LightingEditor>,
     device: Option<Box<dyn Device>>,
     status: Option<Status>,
     /// Recognized, but its driver is experimental and off: nothing was sent to it.
     dormant: bool,
+    battery: bool,
+    battery_clock: super::battery::BatteryClock,
 }
 
 impl Entry {
     fn new(mut device: Box<dyn Device>) -> Self {
+        let mut battery_clock = super::battery::BatteryClock::new();
+        if device
+            .descriptor()
+            .details
+            .iter()
+            .any(|d| matches!(d, crate::core::Detail::Battery(_)))
+        {
+            battery_clock.updated = Some(std::time::Instant::now());
+            battery_clock.last_reading = device
+                .descriptor()
+                .details
+                .iter()
+                .filter(|d| {
+                    matches!(
+                        d,
+                        crate::core::Detail::Battery(_) | crate::core::Detail::Power(_)
+                    )
+                })
+                .cloned()
+                .collect();
+        }
         Self {
+            battery: device.battery().is_some(),
+            battery_clock,
             descriptor: device.descriptor().clone(),
             lighting: device.lighting().map(|l| l.traits()),
+            editor: device.lighting().and_then(|l| l.editor()),
             device: Some(device),
             status: None,
             dormant: false,
@@ -38,16 +66,30 @@ impl Entry {
         Self {
             descriptor,
             lighting: None,
+            editor: None,
             device: None,
             status: None,
             dormant: true,
+            battery: false,
+            battery_clock: super::battery::BatteryClock::new(),
         }
     }
 
     /// The same device across two searches: same driver, name and facts.
     fn same_as(&self, other: &DeviceDescriptor) -> bool {
         let d = &self.descriptor;
-        d.driver.id == other.driver.id && d.name == other.name && d.details == other.details
+        let stable = |detail: &&crate::core::Detail| {
+            !matches!(
+                detail,
+                crate::core::Detail::Battery(_) | crate::core::Detail::Power(_)
+            )
+        };
+        d.driver.id == other.driver.id
+            && d.name == other.name
+            && d.details
+                .iter()
+                .filter(stable)
+                .eq(other.details.iter().filter(stable))
     }
 
     pub fn descriptor(&self) -> &DeviceDescriptor {
@@ -56,6 +98,10 @@ impl Entry {
 
     pub fn lighting(&self) -> Option<LightingTraits> {
         self.lighting
+    }
+
+    pub fn lighting_editor(&self) -> Option<&crate::core::LightingEditor> {
+        self.editor.as_ref()
     }
 
     pub fn status(&self) -> Option<&Status> {
@@ -181,6 +227,18 @@ impl Session {
         });
     }
 
+    pub fn apply_lighting(
+        &mut self,
+        slot: usize,
+        settings: crate::core::LightingSettings,
+        events: &Events,
+    ) {
+        self.run(slot, events, move |d| match d.lighting() {
+            Some(lighting) => lighting.apply_settings(settings),
+            None => Err(DriverError::rejected("no lighting capability")),
+        });
+    }
+
     pub fn restore(&mut self, slot: usize, events: &Events) {
         self.run(slot, events, |d| match d.lighting() {
             Some(lighting) => lighting.restore(),
@@ -201,10 +259,11 @@ impl Session {
     pub fn finish(
         &mut self,
         slot: usize,
-        device: Box<dyn Device>,
+        mut device: Box<dyn Device>,
         result: Result<Outcome, DriverError>,
     ) {
         if let Some(entry) = self.entries.get_mut(slot) {
+            entry.editor = device.lighting().and_then(|l| l.editor());
             entry.device = Some(device);
             entry.status = Some(match result {
                 Ok(outcome) => Status::Done(outcome),
