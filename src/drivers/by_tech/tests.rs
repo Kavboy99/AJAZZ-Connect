@@ -1,10 +1,11 @@
 use super::codec::{self, Command, PASSWORDS};
 use super::state::{COLOR_TABLE_BYTES, CONFIG_BYTES, ColorTable, Config};
 use super::*;
-use crate::core::{Bus, Driver, DriverError, Outcome, ReportSizes, Rgb, Snapshot};
+use crate::core::{Bus, Driver, DriverError, ReportSizes, Rgb, Snapshot};
 use crate::diagnostics::Report;
 use crate::drivers::fake_bus::{FakeBus, Packet, Responder};
 use std::sync::{Arc, Mutex};
+mod configuration;
 mod lighting;
 mod radio;
 
@@ -25,6 +26,7 @@ fn config() -> Vec<u8> {
     block[0x3a] = 2;
     block[0x3b] = 0x05;
     block[0x70] = 0x11;
+    block[126..128].copy_from_slice(&[0x5a, 0xa5]);
     block
 }
 
@@ -139,7 +141,7 @@ fn solid_changes_only_the_static_effect() {
     let (before, after) = (original.bytes(), solid.bytes());
     assert_eq!(
         (after[0x09], after[0x0a], after[0x3a], after[0x3b]),
-        (0, 1, 2, 0x40)
+        (0, 1, 2, 0x00)
     );
     for i in (0..CONFIG_BYTES).filter(|i| ![0x0a, 0x3b].contains(i)) {
         assert_eq!(before[i], after[i], "byte {i:#x}");
@@ -207,54 +209,37 @@ fn discovery_only_reads_and_a_foreign_password_stops_it() {
 }
 
 #[test]
-fn backup_precedes_the_write_and_restore_brings_the_original_back() {
+fn explicit_solid_is_backed_up_verified_and_does_not_enable_implicit_restore() {
     let (fake, state) = keyboard(true);
     let bus: Arc<dyn Bus> = fake.clone();
     let mut device = ByTechDriver.discover(&bus).devices.remove(0);
     let lighting = device.lighting().unwrap();
+    assert!(lighting.traits().writable);
     assert_eq!(
-        lighting.apply_solid(Rgb::new(10, 20, 30)).unwrap(),
-        Outcome::Confirmed
+        lighting.apply_solid(Rgb::new(10, 20, 30)),
+        Ok(crate::core::Outcome::Confirmed)
     );
     let log = fake.log();
     let first_write = log
         .iter()
-        .position(|p| matches!(p, Packet::Feature(p) if p[1] & 0x80 == 0))
+        .position(|p| matches!(p, Packet::Feature(p) if p[1] == 0x0a))
         .unwrap();
     assert!(fake.packets_before_backup().unwrap() <= first_write);
-    assert_eq!(fake.backups()[0].0, "by-tech");
-    {
-        let k = state.lock().unwrap();
-        assert_eq!(k.config[0x0a], 1);
-        assert_eq!(&k.colors[21..24], &[10, 20, 30]);
-    }
-
-    assert_eq!(lighting.restore().unwrap(), Outcome::Restored);
-    {
-        let k = state.lock().unwrap();
-        assert_eq!((k.config.clone(), k.colors.clone()), (config(), colors()));
-    }
-    let snapshot = Snapshot::from_bytes(fake.backups()[0].1.clone()).unwrap();
-    assert_eq!(
-        lighting.restore_snapshot(&snapshot).unwrap(),
-        Outcome::Restored
+    let start = log.len();
+    assert_eq!(lighting.restore(), Err(DriverError::NoRollback));
+    let backup = super::backup::Backup::new(
+        &endpoint().fingerprint(),
+        "03000000015e-0100",
+        &Config::parse(&config()).unwrap(),
+        &ColorTable::parse(&colors()).unwrap(),
     );
-}
-
-#[test]
-fn a_write_the_keyboard_did_not_keep_is_reported_and_not_repeated() {
-    let (fake, _) = keyboard(false);
-    let bus: Arc<dyn Bus> = fake.clone();
-    let mut device = ByTechDriver.discover(&bus).devices.remove(0);
-    let error = device
-        .lighting()
-        .unwrap()
-        .apply_solid(Rgb::new(1, 1, 1))
-        .unwrap_err();
-    assert_eq!(error, DriverError::ReadBackMismatch);
-    let writes = opcodes(&fake.log())
-        .into_iter()
-        .filter(|op| op & 0x80 == 0)
-        .count();
-    assert_eq!(writes, 2);
+    let snapshot = Snapshot::from_bytes(backup.to_json().unwrap()).unwrap();
+    assert_eq!(
+        lighting.restore_snapshot(&snapshot),
+        Err(DriverError::NoRollback)
+    );
+    assert_eq!(fake.log().len(), start);
+    let k = state.lock().unwrap();
+    assert_eq!(&k.colors[21..24], &[10, 20, 30]);
+    assert_eq!(k.config[0x0a], 1);
 }

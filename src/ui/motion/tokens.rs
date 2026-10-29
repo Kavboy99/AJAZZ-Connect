@@ -18,6 +18,11 @@ pub const PAGE: SpringSpec = SpringSpec {
     period: 0.40,
     damping: 0.95,
 };
+/// Device editors: camera and panel travel settle without overshoot.
+pub const WORKSPACE: SpringSpec = SpringSpec {
+    period: 0.40,
+    damping: 1.0,
+};
 /// Shared device model during opening: a restrained overshoot (about 0.6%).
 pub const DEVICE_REVEAL: SpringSpec = SpringSpec {
     period: 0.52,

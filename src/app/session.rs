@@ -1,9 +1,11 @@
 mod battery;
+mod configuration;
+mod explicit_lighting;
+mod lighting;
+mod operations;
 use super::discovery;
 use super::events::{Discovered, DriverNote, Event, Events};
-use crate::core::{Device, DeviceDescriptor, DriverError, LightingTraits, Outcome, Rgb};
-use crate::storage::backups;
-use std::path::PathBuf;
+use crate::core::{Device, DeviceDescriptor, DriverError, LightingTraits, Outcome};
 
 /// The last operation on a device, as the interface shows it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -16,11 +18,13 @@ pub enum Status {
 /// A found device. While an operation runs, the device itself is on a worker thread and only its
 /// passport stays here.
 pub struct Entry {
+    backup: Option<crate::core::BackupInfo>,
     descriptor: DeviceDescriptor,
     lighting: Option<LightingTraits>,
     editor: Option<crate::core::LightingEditor>,
     device: Option<Box<dyn Device>>,
     status: Option<Status>,
+    pending_lighting: Option<crate::core::LightingSettings>,
     /// Recognized, but its driver is experimental and off: nothing was sent to it.
     dormant: bool,
     battery: bool,
@@ -51,6 +55,7 @@ impl Entry {
                 .collect();
         }
         Self {
+            backup: device.configuration_backup().map(|b| b.backup_info()),
             battery: device.battery().is_some(),
             battery_clock,
             descriptor: device.descriptor().clone(),
@@ -58,17 +63,20 @@ impl Entry {
             editor: device.lighting().and_then(|l| l.editor()),
             device: Some(device),
             status: None,
+            pending_lighting: None,
             dormant: false,
         }
     }
 
     fn dormant(descriptor: DeviceDescriptor) -> Self {
         Self {
+            backup: None,
             descriptor,
             lighting: None,
             editor: None,
             device: None,
             status: None,
+            pending_lighting: None,
             dormant: true,
             battery: false,
             battery_clock: super::battery::BatteryClock::new(),
@@ -100,6 +108,10 @@ impl Entry {
         self.lighting
     }
 
+    pub fn backup_info(&self) -> Option<crate::core::BackupInfo> {
+        self.backup
+    }
+
     pub fn lighting_editor(&self) -> Option<&crate::core::LightingEditor> {
         self.editor.as_ref()
     }
@@ -112,6 +124,10 @@ impl Entry {
         !self.dormant && self.device.is_none()
     }
 
+    pub fn lighting_pending(&self) -> bool {
+        self.pending_lighting.is_some()
+    }
+
     pub fn is_dormant(&self) -> bool {
         self.dormant
     }
@@ -119,6 +135,7 @@ impl Entry {
 
 #[derive(Default)]
 pub struct Session {
+    live_lighting: lighting::LiveLighting,
     entries: Vec<Entry>,
     notes: Vec<DriverNote>,
     searched: bool,
@@ -146,7 +163,12 @@ impl Session {
 
     /// A new search would drop devices that are on worker threads, so it waits for them.
     pub fn busy(&self) -> bool {
-        self.discovering || self.entries.iter().any(Entry::busy)
+        self.discovering
+            || self.live_lighting.pending()
+            || self
+                .entries
+                .iter()
+                .any(|e| e.busy() || e.lighting_pending())
     }
 
     /// The refresh button: always a full search.
@@ -192,84 +214,10 @@ impl Session {
             .iter()
             .map(|old| entries.iter().position(|new| old.same_as(new.descriptor())))
             .collect();
+        self.live_lighting = lighting::LiveLighting::default();
         self.entries = entries;
         self.notes = discovered.notes;
         moved
-    }
-
-    fn run(
-        &mut self,
-        slot: usize,
-        events: &Events,
-        job: impl FnOnce(&mut dyn Device) -> Result<Outcome, DriverError> + Send + 'static,
-    ) {
-        let Some(entry) = self.entries.get_mut(slot) else {
-            return;
-        };
-        let Some(mut device) = entry.device.take() else {
-            return;
-        };
-        entry.status = Some(Status::Running);
-        events.spawn(move || {
-            let result = job(device.as_mut());
-            Event::Lighting {
-                slot,
-                device,
-                result,
-            }
-        });
-    }
-
-    pub fn apply_solid(&mut self, slot: usize, color: Rgb, events: &Events) {
-        self.run(slot, events, move |d| match d.lighting() {
-            Some(lighting) => lighting.apply_solid(color),
-            None => Err(DriverError::rejected("no lighting capability")),
-        });
-    }
-
-    pub fn apply_lighting(
-        &mut self,
-        slot: usize,
-        settings: crate::core::LightingSettings,
-        events: &Events,
-    ) {
-        self.run(slot, events, move |d| match d.lighting() {
-            Some(lighting) => lighting.apply_settings(settings),
-            None => Err(DriverError::rejected("no lighting capability")),
-        });
-    }
-
-    pub fn restore(&mut self, slot: usize, events: &Events) {
-        self.run(slot, events, |d| match d.lighting() {
-            Some(lighting) => lighting.restore(),
-            None => Err(DriverError::NoRollback),
-        });
-    }
-
-    pub fn restore_file(&mut self, slot: usize, path: PathBuf, events: &Events) {
-        self.run(slot, events, move |d| {
-            let snapshot = backups::load(&path).map_err(|_| DriverError::ForeignBackup)?;
-            match d.lighting() {
-                Some(lighting) => lighting.restore_snapshot(&snapshot),
-                None => Err(DriverError::NoRollback),
-            }
-        });
-    }
-
-    pub fn finish(
-        &mut self,
-        slot: usize,
-        mut device: Box<dyn Device>,
-        result: Result<Outcome, DriverError>,
-    ) {
-        if let Some(entry) = self.entries.get_mut(slot) {
-            entry.editor = device.lighting().and_then(|l| l.editor());
-            entry.device = Some(device);
-            entry.status = Some(match result {
-                Ok(outcome) => Status::Done(outcome),
-                Err(error) => Status::Failed(error),
-            });
-        }
     }
 }
 

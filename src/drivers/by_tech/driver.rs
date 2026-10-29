@@ -1,12 +1,14 @@
+mod commit;
+mod configuration;
 mod controls;
-use super::backup::Backup;
+
 use super::codec::{self, Command, PASSWORDS, REPORT_BYTES, REPORT_ID};
 use super::state::{ColorTable, Config};
 use super::{ID, admits, descriptor};
 use crate::app::identity;
 use crate::core::{
     Bus, Device, DeviceDescriptor, Discovery, Driver, DriverError, DriverInfo, Endpoint, Guard,
-    HidChannel, Identification, Lighting, Maturity, Note, Outcome, Rgb,
+    HidChannel, Identification, Lighting, Maturity, Note,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,12 +23,13 @@ const INFO: DriverInfo = DriverInfo {
 /// The vendor waits 20 ms between a request and its Get Feature, and 30 ms between commands.
 const REPLY_DELAY: Duration = Duration::from_millis(20);
 const COMMAND_GAP: Duration = Duration::from_millis(30);
-/// Time for the keyboard to store a block before it is read back.
-const STORE_DELAY: Duration = Duration::from_millis(200);
 
 pub struct ByTechDriver;
 
 impl Driver for ByTechDriver {
+    fn supports_configuration_backup(&self) -> bool {
+        true
+    }
     fn info(&self) -> DriverInfo {
         INFO
     }
@@ -82,6 +85,17 @@ impl Driver for ByTechDriver {
                 let raw = read(channel.as_ref(), Command::ReadConfig)?;
                 details["config_valid"] = Config::parse(&raw).is_ok().into();
                 details["effect"] = raw[0x0a].into();
+                std::thread::sleep(COMMAND_GAP);
+                let palette = read(channel.as_ref(), Command::ReadColors)?;
+                ColorTable::parse(&palette)?;
+                details["lighting_programs"] = serde_json::Value::Array((1usize..=21).map(|id| {
+                    let at = 0x38 + id * 2;
+                    let colors: Vec<_> = (0..7).map(|slot| {
+                        let rgb = 21 * id + 3 * slot;
+                        serde_json::json!(&palette[rgb..rgb + 3])
+                    }).collect();
+                    serde_json::json!({"hardware_id":id, "speed":raw[at+1] >> 4, "brightness":raw[at], "color_slot":raw[at+1] & 15, "colors":colors})
+                }).collect());
                 payload.extend_from_slice(&raw);
                 if password == PASSWORDS[1] && endpoint.release == 0x0100 {
                     super::battery::identify(channel.as_ref(), &mut details);
@@ -110,27 +124,17 @@ pub(super) fn lock_name(endpoint: &Endpoint) -> String {
 /// A read request, then its answer. A failed read changes nothing and may be repeated by the
 /// user; this function itself never repeats.
 pub(super) fn read(channel: &dyn HidChannel, command: Command) -> Result<Vec<u8>, DriverError> {
-    channel.send_feature(&codec::request(command)?)?;
+    let request = codec::request(command)?;
+    crate::diagnostics::logging::command(ID, request[1], false);
+    channel.send_feature(&request)?;
     std::thread::sleep(REPLY_DELAY);
     let mut report = [0; REPORT_BYTES];
     report[0] = REPORT_ID;
     let n = channel.get_feature(&mut report)?;
-    Ok(codec::reply(&report[..n], command)?.to_vec())
-}
-
-/// A write is sent once: if the transfer fails, the packet may still have arrived.
-fn write(channel: &dyn HidChannel, command: Command, data: &[u8]) -> Result<(), DriverError> {
-    let packet = codec::write(command, data)?;
-    channel
-        .send_feature(&packet)
-        .map_err(|e| DriverError::Unconfirmed(e.to_string()))
-}
-
-fn read_blocks(channel: &dyn HidChannel) -> Result<(Config, ColorTable), DriverError> {
-    let config = Config::parse(&read(channel, Command::ReadConfig)?)?;
-    std::thread::sleep(COMMAND_GAP);
-    let colors = ColorTable::parse(&read(channel, Command::ReadColors)?)?;
-    Ok((config, colors))
+    let framed = report
+        .get(..n)
+        .ok_or_else(|| DriverError::protocol("oversized Feature reply"))?;
+    Ok(codec::reply(framed, command)?.to_vec())
 }
 
 /// One operation's hold on the device; the channel closes before the lock is released.
@@ -146,8 +150,9 @@ pub(super) struct ByTechDevice {
     identity: String,
     protocol_identity: String,
     lock: String,
-    original: Option<(Config, ColorTable)>,
-    cached: Config,
+
+    cached: Option<Config>,
+    cached_colors: Option<ColorTable>,
 }
 
 impl ByTechDevice {
@@ -158,7 +163,9 @@ impl ByTechDevice {
         let channel = bus.open_hid(&endpoint)?;
         let protocol_identity = Self::password(channel.as_ref(), &endpoint)?;
         std::thread::sleep(COMMAND_GAP);
-        let (cached, _) = read_blocks(channel.as_ref())?;
+        let cached = Config::parse(&read(channel.as_ref(), Command::ReadConfig)?).ok();
+        std::thread::sleep(COMMAND_GAP);
+        let cached_colors = ColorTable::parse(&read(channel.as_ref(), Command::ReadColors)?).ok();
         let mut descriptor = descriptor(&endpoint, INFO);
         if protocol_identity == "03000000015e-0100" {
             super::battery::append(channel.as_ref(), &mut descriptor);
@@ -171,8 +178,9 @@ impl ByTechDevice {
             endpoint,
             protocol_identity,
             lock,
-            original: None,
+
             cached,
+            cached_colors,
         })
     }
 
@@ -204,76 +212,12 @@ impl ByTechDevice {
             _lease: lease,
         })
     }
-
-    /// Writes only the blocks that differ from `current`, then reads both back.
-    fn write_blocks(
-        channel: &dyn HidChannel,
-        current: &(Config, ColorTable),
-        target: &(Config, ColorTable),
-    ) -> Result<Outcome, DriverError> {
-        if current.0 != target.0 {
-            write(channel, Command::WriteConfig, target.0.bytes())?;
-            std::thread::sleep(COMMAND_GAP);
-        }
-        if current.1 != target.1 {
-            write(channel, Command::WriteColors, target.1.bytes())?;
-        }
-        std::thread::sleep(STORE_DELAY);
-        if read_blocks(channel)? == *target {
-            Ok(Outcome::Confirmed)
-        } else {
-            Err(DriverError::ReadBackMismatch)
-        }
-    }
-
-    fn restore_to(&mut self, target: &(Config, ColorTable)) -> Result<Outcome, DriverError> {
-        let exchange = self.exchange()?;
-        let channel = exchange.channel.as_ref();
-        let current = read_blocks(channel)?;
-        std::thread::sleep(COMMAND_GAP);
-        let result = Self::write_blocks(channel, &current, target)?;
-        self.cached = target.0.clone();
-        Ok(match result {
-            Outcome::Confirmed => Outcome::Restored,
-            other => other,
-        })
-    }
-
-    fn apply_target(
-        &mut self,
-        settings: Option<crate::core::LightingSettings>,
-        color: Rgb,
-    ) -> Result<Outcome, DriverError> {
-        let exchange = self.exchange()?;
-        let channel = exchange.channel.as_ref();
-        let current = read_blocks(channel)?;
-        let target = if let Some(settings) = settings {
-            super::lighting::target(&current, settings)?
-        } else {
-            (
-                current.0.solid(),
-                current.1.with_static_color(color.to_array()),
-            )
-        };
-        if self.original.is_none() {
-            let backup = Backup::new(
-                &self.identity,
-                &self.protocol_identity,
-                &current.0,
-                &current.1,
-            );
-            self.bus
-                .store_backup("by-tech", &self.identity, &backup.to_json()?)?;
-            self.original = Some(current.clone());
-        }
-        std::thread::sleep(COMMAND_GAP);
-        let outcome = Self::write_blocks(channel, &current, &target)?;
-        self.cached = target.0;
-        Ok(outcome)
-    }
 }
 
 impl Device for ByTechDevice {
+    fn configuration_backup(&mut self) -> Option<&mut dyn crate::core::ConfigurationBackup> {
+        Some(self)
+    }
     fn battery(&mut self) -> Option<&mut dyn crate::core::Battery> {
         (self.protocol_identity == "03000000015e-0100").then_some(self)
     }

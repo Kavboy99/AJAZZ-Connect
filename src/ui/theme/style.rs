@@ -25,6 +25,7 @@ fn visuals() -> Visuals {
     } else {
         Visuals::light()
     };
+    v.handle_shape = eframe::egui::style::HandleShape::Circle;
     v.panel_fill = color::SURFACE_BASE.get();
     v.window_fill = color::SURFACE_OVERLAY.get();
     v.window_stroke = Stroke::new(size::STROKE, color::STROKE_DEFAULT.get());

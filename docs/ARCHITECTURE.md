@@ -76,7 +76,7 @@ src/
       gpu/                 safe wgpu host, mesh/mips, matrices, pipelines, targets and WGSL shaders
       raster.rs, raster/   software reference renderer for contexts without a GPU backend
     pages/                 devices, device, lighting (explicit hardware actions), diagnostics, settings
-      studio/              viewport workspace state, model stage, mode island and settings inspector
+      studio/              viewport workspace state, model stage, mode island, fixed settings inspector and notices
 
   cli/                     --probe, --inspect, --lighting-probe, --review (+ raster.rs, review_state.rs)
 assets/models/*.glb        device models named by profiles (`visual = "..."`), embedded at build time
@@ -166,7 +166,25 @@ and shows actions from `LightingTraits`: "Restore" when `rollback != Unavailable
 `core/lighting.rs` defines neutral native-program metadata. Drivers without native programs use the
 default unavailable implementation. BY Tech builds its catalog from validated cached configuration;
 `app/session` captures it at discovery and after operations. `ui/pages/studio/programs.rs` holds local
-per-preset drafts and the scrolling island. Only the explicit hardware action invokes a worker.
+per-preset drafts and the scrolling island. The settings inspector itself never scrolls: it reserves compact control rows and scales the wheel to fit. A separate notices module measures messages below the model and above the island. Only an explicit Select or Apply invokes a native lighting worker. The shared studio/apply controller captures the requested draft and disables duplicates while busy. Card selection, edited values and the last confirmed device mode are separate state; the device editor supplies the checkmark.
+The commit controller distinguishes the action that was clicked (Select or Apply) from its preset,
+so only that action owns the progress indicator. Both use a fixed icon slot and spring crossfade;
+other commit actions remain visually stable while duplicate input is blocked. Battery ownership is
+separate from lighting operations and never changes action availability or the cached editor.
+Only the device-confirmed card omits Select. Highlighting a preview never hides its Select action;
+Apply remains in the inspector for editing the active mode.
+`studio/header.rs` owns navigation and the small experimental caption below Back. The caption uses
+the system Segoe UI Light family with a built-in fallback. `studio/notices.rs` selects one current
+failure or connection blocker; routine operations and success do not allocate a message strip or
+move the model. Driver maturity, persistence, backup implementation and read-back details are not
+repeated below the model. Button progress and the confirmed card checkmark provide operation feedback.
+`device_hero.rs` attaches technical facts to the connection text/icon hover response. The tooltip
+omits battery/power values, which remain in the visible battery row. Overview has no technical-details
+section, compact disclosure or preview-without-writing caption.
+`widgets/action_tile.rs` is the shared square capability entry control. The device overview lays out
+all supported actions in one width-driven grid, with equal tile sizes, token spacing and an internal
+overflow scroll area. New capability entry points reuse this widget and grid instead of introducing
+individual flat buttons. The widget delegates hover, press and focus motion to `Interaction`.
 `Driver::lighting_preview` exposes static control metadata without discovery or a bus. The application
 catalog caches it once. The studio uses it for offline pages and live connections lacking lighting,
 labels the values illustrative and keeps Apply disabled. Native device state always takes priority.
@@ -245,12 +263,19 @@ Current native wgpu/Direct3D 12 measurements and their limits are in `GPU-PERFOR
 3. **Threads are short-lived**: `app::Events::spawn` starts one thread per operation.
 4. **A HID handle is opened per operation and closed right after.**
 5. **No needless copies.** Packets are fixed-size arrays; descriptors are parsed once per discovery.
-6. **Dependencies are minimal.** New in 0.3.0: `toml` (profiles, parse only) and `window-vibrancy`
-   (Mica through DWM). Drivers use feature flags. `release` profile: `lto`, `strip`.
+6. **Dependencies are minimal.** Profiles use `toml` (parse only). Window materials use
+   `windows-sys` DWM calls isolated in `transport/acrylic.rs`; `raw-window-handle` passes the live
+   HWND from eframe. Drivers use feature flags. `release` profile: `lto`, `strip`.
 7. **Logs and reports are size-bounded**; backups are small JSON files (up to 128 KB, enforced on load).
 8. **Images and fonts.** Icons are embedded vector outlines of only the glyphs in use. Fonts come from
    the system (Segoe UI, Segoe UI Semibold, Cascadia Mono); none are bundled.
-9. **Mica is done by DWM, not by the application.** Custom backdrop blur shaders are forbidden.
+9. **Acrylic is done by DWM, not by the application.** Custom backdrop blur shaders are forbidden.
+   The native DX12 surface uses DirectComposition alpha, with the HWND's full-window legacy alpha
+   region kept enabled so a redirected bitmap cannot cover the navigation after native repaints.
+   The caption and navigation share the application theme. No backdrop work runs at rest.
+   After the first presentation, native glass initialization clears the HWND redirection bitmap
+   with the stock black brush and sets the class background brush for future resize exposure.
+   This bounded GDI operation is isolated in `transport/acrylic.rs`; GPU pixels remain GPU-only.
    The model's bounded optical bloom is separate from the interface backdrop.
 10. **Device models** are embedded `.glb` files (`assets/models/`, 2.9 MB for the AK820 MAX) parsed on a
     short-lived thread the first time a tile shows them; the loader's `request_repaint` is the same
@@ -405,3 +430,33 @@ public `App::set_window_hidden` hook supports a future tray hide operation indep
 minimized flag; native tray icons themselves are not implemented by this change. Worker completion
 still wakes the event loop to return device ownership and dispatch the next due read; no permanent
 worker, per-device timer thread, global USB rescan, or repeated descriptor read is introduced.
+
+Lighting editor preferences are stored per driver/model in application settings, without device paths or serial numbers. Device settings initialize metadata and remain available to the driver backup/restore path; reconnect reads do not overwrite app choices. Saturation supports white and pastels. Offline CLI reviews use ephemeral settings and never save UI preferences. Native lighting drafts remain local until Select or Apply. Both buttons capture one draft through the shared apply controller and invoke one short-lived session worker. Pending operations reject duplicate requests. The session retains one explicit commit while telemetry owns the device, dispatches it on the existing completion event and cancels it on restore/export/recovery or failure. This is separate from the edit-stream queue and introduces no polling or idle thread. Telemetry ownership does not change Apply visuals. Card selection, slider motion, page opening and preferences never enqueue writes. The independent session queue still rejects persistent capabilities; the native workspace does not use it.
+
+
+### Input-loss containment (2026-10-29)
+
+The automatic lighting queue rejects every persistent capability. Persistent drivers use explicit Apply; BY Tech additionally exposes writable=false and Rollback::Unavailable and rejects apply/restore before any HID exchange. This supersedes automatic persistent editing above. The owner reported input loss and a passive read found an invalid configuration. The original configuration recovery was verified by exact read-back and the owner confirmed restored key input; the new general backup UI has not been physically exercised.
+
+
+### Configuration backup and standalone utility
+
+core::ConfigurationBackup declares capture coverage, permitted restore scope, pure snapshot validation and explicit recovery. It is separate from Lighting, so quarantining normal writes does not remove a verified recovery path. Session export/recovery jobs own the device exclusively on existing short-lived workers and cancel pending lighting work. There is no backup polling.
+
+The second Cargo binary, lusorium-backup, has its own BackupApp with a compact 640-by-460 window, a device selector, archive actions and status. It never constructs Studio App/Shell, the 3D viewer, editor, watcher or telemetry scheduler. Protocol adapters, archive validation, transport and basic controls are shared. The main Settings page exposes the backup panel as its first card with an isolated BackupSession; it does not depend on the ordinary discovery settings. Only drivers declaring backup support perform identification requests. Unknown HID keyboard interfaces are listed passively and grouped by OS container ID; no protocol request is sent to them. Native final restore confirmation remains mandatory.
+
+storage::archive wraps the driver snapshot in a schema-1 JSON envelope with a SHA256 of the payload and compresses it with GZip. Input and inflated envelopes are bounded to 128 KiB. No paths are extracted, no payloads executed. Legacy driver JSON is accepted for migration, then validated by the selected device driver. Snapshots remain bound to the hashed original endpoint and protocol; changing USB ports can require the original port.
+
+BY Tech capture retains raw 128-byte system configuration plus 512-byte palette, including invalid source data useful for diagnosis. Target recovery must parse and have the original signature. Only the owner's tri-mode password/release plus exact captured descriptor can restore, with one 0x04 write, mandatory pre-recovery backup and a 500 ms delay before full read-back. Palette writes are rejected by the codec. AA55 captures/restores its lighting block with its own identity, backup and read-back rules. No macro, key-map, display, calibration, firmware or universal full-memory backup is implemented.
+
+
+### Opt-in event logging
+
+Settings > Developer mode exposes one persisted logging_enabled switch shared by both applications. It defaults to false for existing and new settings. diagnostics::logging records typed JSONL events: worker/operation lifecycle, action type, driver command opcode, HID and loopback TCP IO status, byte counts/capacities and elapsed microseconds. Read capacities are recorded for HID operations; TCP records actual transferred sizes. Driver error payloads, packet contents, serials, OS device paths, archive paths and key presses are excluded. A Rust panic hook records a fatal marker plus source basename/line/column and syncs it, without panic text or stack traces that may contain personal data. A forced OS termination or power loss cannot guarantee a final panic marker.
+
+Logs live in the identity data directory under logs/. Each file rolls at 2 MiB; the writer retains the newest four session JSONL files (old-file deletion is best effort if the OS locks one). Disabling closes the file and adds no worker, loop, timer or idle writes. The transport takes a fast atomic-disabled branch before timing/serialization. A file-write failure disables recording and the settings page reports the inactive logger. Opening the logs folder is an explicit user action. Ephemeral reviews never configure the real logger. Tests verify opt-in migration/persistence, rotation and error-payload redaction.
+
+
+### Backup UI correction
+
+The initial backup utility reused the Studio application in a reduced mode. That mode has been removed. The separate utility now has its own application type and lifecycle, and is distributed as a ZIP containing only its EXE and a small Russian manual. Opening main Settings does not scan hardware automatically; Find devices starts an independent read-only backup search. Save and Restore controls remain visible (disabled if necessary), including when no keyboard or an unsupported interface is selected. This fixes discoverability without claiming universal full configuration support.

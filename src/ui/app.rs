@@ -23,8 +23,9 @@ pub struct App {
     watch: Option<Watch>,
     /// The DWM backdrop is active: the navigation pane is left transparent.
     backdrop: bool,
-    /// The theme the backdrop was last tinted for.
-    backdrop_theme: Theme,
+    /// Caption theme last submitted to DWM.
+    #[cfg(windows)]
+    backdrop_theme: Option<Theme>,
 }
 
 fn blend_target(theme: Theme) -> f32 {
@@ -46,7 +47,8 @@ impl App {
             events: Events::new(Arc::new(move || repaint.request_repaint())),
             session: Session::default(),
             diagnostics: Diagnostics::default(),
-            backdrop_theme: settings.theme,
+            #[cfg(windows)]
+            backdrop_theme: None,
             settings,
             drivers: drivers::registry().iter().map(|d| d.info()).collect(),
             shell: Shell::default(),
@@ -84,6 +86,9 @@ impl App {
 
     pub fn session_mut(&mut self) -> &mut Session {
         &mut self.session
+    }
+    pub fn preview_backups(&mut self, found: crate::app::events::Discovered) {
+        self.pages.preview_backups(found);
     }
     pub fn capture_gpu_metrics(&mut self, ctx: &Context, path: std::path::PathBuf) {
         self.gpu_capture = Some(gpu_capture::Capture::new(ctx.clone(), path));
@@ -138,6 +143,9 @@ impl App {
             theme::style::apply(ctx);
         }
         self.drain();
+        if let Some(wait) = self.session.flush_lighting(&self.events) {
+            ctx.request_repaint_after(wait);
+        }
         self.search_when_due(ctx);
         let hidden =
             self.battery.window_hidden || ctx.input(|i| i.viewport().minimized.unwrap_or(false));
@@ -156,6 +164,9 @@ impl App {
         };
         self.shell
             .show(ctx, self.backdrop, &mut model, &mut self.pages);
+        if let Some(wait) = self.session.flush_lighting(&self.events) {
+            ctx.request_repaint_after(wait);
+        }
         super::viewer::gpu::finish_frame(ctx, false);
     }
 }
@@ -163,13 +174,20 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         let started = std::time::Instant::now();
+        #[cfg(windows)]
+        if self.backdrop_theme.is_none() && ctx.cumulative_frame_nr() == 0 {
+            // eframe shows the HWND after its first presentation. Applying DWM material
+            // before that leaves the redirected client surface white on ordinary launches.
+            ctx.request_repaint();
+        } else if self.backdrop_theme != Some(self.settings.theme) {
+            self.backdrop_theme = Some(self.settings.theme);
+            self.backdrop = super::backdrop::apply(frame, self.settings.theme == Theme::Dark);
+        }
+        #[cfg(not(windows))]
+        let _ = frame;
         self.frame(ctx);
         if let Some(capture) = &mut self.gpu_capture {
             capture.record(started.elapsed());
-        }
-        if self.backdrop && self.backdrop_theme != self.settings.theme {
-            self.backdrop_theme = self.settings.theme;
-            super::tint_backdrop(frame, self.settings.theme == Theme::Dark);
         }
     }
 
@@ -178,6 +196,14 @@ impl eframe::App for App {
             [0.0; 4]
         } else {
             color::SURFACE_BASE.get().to_normalized_gamma_f32()
+        }
+    }
+}
+
+impl Drop for App {
+    fn drop(&mut self) {
+        if !self.settings.ephemeral {
+            crate::diagnostics::logging::event("application", "exit", "ok");
         }
     }
 }

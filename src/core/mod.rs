@@ -4,6 +4,7 @@
 mod bus;
 mod capability;
 mod color;
+mod configuration;
 mod device;
 mod digest;
 mod driver;
@@ -15,6 +16,7 @@ mod snapshot;
 pub use bus::{Bus, Guard, HidChannel, Stream};
 pub use capability::{Battery, Lighting, LightingTraits, Outcome, Rollback};
 pub use color::Rgb;
+pub use configuration::{BackupCoverage, BackupInfo, ConfigurationBackup, RestoreScope};
 pub use device::{Detail, DeviceDescriptor, DeviceKind, PowerSource};
 pub use digest::sha256_hex;
 pub use driver::{

@@ -1,4 +1,5 @@
-use super::state::{ColorTable, Config};
+use super::state::ColorTable;
+use super::state::Config;
 use crate::core::DriverError;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,35 @@ pub struct Backup {
 }
 
 impl Backup {
+    pub(super) fn from_raw(device: &str, protocol: &str, config: Vec<u8>, colors: Vec<u8>) -> Self {
+        Self {
+            schema: SCHEMA,
+            kind: KIND.into(),
+            created_utc: chrono::Utc::now().to_rfc3339(),
+            device_identity: device.into(),
+            protocol_identity: protocol.into(),
+            config,
+            colors,
+        }
+    }
+    pub(super) fn recovery_config(
+        &self,
+        device: &str,
+        protocol: &str,
+    ) -> Result<Config, DriverError> {
+        if self.schema != SCHEMA
+            || self.kind != KIND
+            || self.device_identity != device
+            || self.protocol_identity != protocol
+        {
+            return Err(DriverError::ForeignBackup);
+        }
+        let config = Config::parse(&self.config).map_err(|_| DriverError::ForeignBackup)?;
+        if self.config[126..] != [0x5a, 0xa5] {
+            return Err(DriverError::ForeignBackup);
+        }
+        Ok(config)
+    }
     pub fn new(
         device_identity: &str,
         protocol_identity: &str,
@@ -33,24 +63,6 @@ impl Backup {
             config: config.bytes().to_vec(),
             colors: colors.bytes().to_vec(),
         }
-    }
-
-    /// The blocks, if the backup comes from this port and this keyboard and is well-formed.
-    pub fn blocks(
-        &self,
-        device_identity: &str,
-        protocol_identity: &str,
-    ) -> Result<(Config, ColorTable), DriverError> {
-        let ours = self.schema == SCHEMA
-            && self.kind == KIND
-            && self.device_identity == device_identity
-            && self.protocol_identity == protocol_identity;
-        if !ours {
-            return Err(DriverError::ForeignBackup);
-        }
-        let config = Config::parse(&self.config).map_err(|_| DriverError::ForeignBackup)?;
-        let colors = ColorTable::parse(&self.colors).map_err(|_| DriverError::ForeignBackup)?;
-        Ok((config, colors))
     }
 
     pub fn to_json(&self) -> Result<Vec<u8>, DriverError> {

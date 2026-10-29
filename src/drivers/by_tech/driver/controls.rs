@@ -1,39 +1,41 @@
-//! Native and legacy lighting operations share the same backup and verification path.
-use super::super::backup::Backup;
+//! Owner-authorized explicit lighting commits; drafts never reach this adapter.
 use super::ByTechDevice;
 use crate::core::{DriverError, Lighting, LightingTraits, Outcome, Rgb, Rollback, Snapshot};
 
 impl Lighting for ByTechDevice {
     fn editor(&self) -> Option<crate::core::LightingEditor> {
-        Some(super::super::lighting::editor(&self.cached))
+        Some(super::super::lighting::editor(
+            self.cached.as_ref()?,
+            self.cached_colors.as_ref()?,
+        ))
     }
-
+    fn traits(&self) -> LightingTraits {
+        LightingTraits {
+            writable: self.can_commit(),
+            persistent: true,
+            rollback: Rollback::Unavailable,
+        }
+    }
     fn apply_settings(
         &mut self,
         settings: crate::core::LightingSettings,
     ) -> Result<Outcome, DriverError> {
-        self.apply_target(Some(settings), Rgb::default())
+        self.commit(settings)
     }
-    fn traits(&self) -> LightingTraits {
-        LightingTraits {
-            writable: true,
-            persistent: true,
-            rollback: Rollback::SessionAndFile,
-        }
-    }
-
     fn apply_solid(&mut self, color: Rgb) -> Result<Outcome, DriverError> {
-        self.apply_target(None, color)
+        let config = self.cached.as_ref().ok_or(DriverError::Changed)?;
+        let (speed, brightness, _) = config.settings(1);
+        self.commit(crate::core::LightingSettings {
+            preset: 1,
+            speed,
+            brightness,
+            color: Some(color),
+        })
     }
-
     fn restore(&mut self) -> Result<Outcome, DriverError> {
-        let original = self.original.clone().ok_or(DriverError::NoRollback)?;
-        self.restore_to(&original)
+        Err(DriverError::NoRollback)
     }
-
-    fn restore_snapshot(&mut self, snapshot: &Snapshot) -> Result<Outcome, DriverError> {
-        let backup: Backup = snapshot.parse()?;
-        let target = backup.blocks(&self.identity, &self.protocol_identity)?;
-        self.restore_to(&target)
+    fn restore_snapshot(&mut self, _: &Snapshot) -> Result<Outcome, DriverError> {
+        Err(DriverError::NoRollback)
     }
 }

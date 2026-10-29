@@ -3,14 +3,14 @@
 //! lights up; everything moves on springs and stops when the pointer leaves or rests.
 
 use super::interaction::{Interaction, focus_ring};
+use super::stage_spot as spot;
 use crate::ui::icons::Icon;
 use crate::ui::motion::{self, Channel, tokens};
 use crate::ui::theme::{Role, color, motion_tokens, radius, rich, size, space};
 use crate::ui::viewer::{self, Pose, Shown};
-use eframe::egui::epaint::Mesh;
 use eframe::egui::{
-    Align, Color32, CornerRadius, Id, Label, Layout, Painter, Pos2, Rect, Response, Sense, Shape,
-    Stroke, StrokeKind, Ui, UiBuilder, Vec2, pos2, vec2,
+    Align, Color32, CornerRadius, Id, Label, Layout, Rect, Response, Sense, Stroke, StrokeKind, Ui,
+    UiBuilder, Vec2, pos2, vec2,
 };
 
 /// The resting view: from the front, above and a little to the left.
@@ -22,7 +22,6 @@ const FOOTER: f32 = 44.0;
 const ICON_SIZE: f32 = 64.0;
 const GLOW_ALPHA: f32 = 0.30;
 const SHADOW_ALPHA: f32 = 0.45;
-const SEGMENTS: usize = 48;
 
 pub struct TileContent<'a> {
     pub name: &'a str,
@@ -32,31 +31,6 @@ pub struct TileContent<'a> {
     pub busy: bool,
     /// Badges in the top left corner: icon + text, as everywhere.
     pub badges: &'a [(super::Tone, &'a str)],
-}
-
-/// A soft radial spot: `color` in the middle, fading out at the ellipse `radii`.
-fn spot(painter: &Painter, center: Pos2, radii: Vec2, color: Color32) {
-    let mut mesh = Mesh::default();
-    mesh.colored_vertex(center, color);
-    let rings = [
-        (0.45, color.gamma_multiply(0.55)),
-        (1.0, Color32::TRANSPARENT),
-    ];
-    for (scale, ring_color) in rings {
-        for i in 0..SEGMENTS {
-            let angle = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
-            let offset = vec2(angle.cos() * radii.x, angle.sin() * radii.y) * scale;
-            mesh.colored_vertex(center + offset, ring_color);
-        }
-    }
-    let n = SEGMENTS as u32;
-    for i in 0..n {
-        let j = (i + 1) % n;
-        mesh.add_triangle(0, 1 + i, 1 + j);
-        mesh.add_triangle(1 + i, 1 + n + i, 1 + n + j);
-        mesh.add_triangle(1 + i, 1 + n + j, 1 + j);
-    }
-    painter.add(Shape::mesh(mesh));
 }
 
 /// Linear RGB of a token, for the rim light of the model.
@@ -176,6 +150,7 @@ pub fn device_stage(ui: &mut Ui, id: Id, stage: Rect, visual: Option<&str>, icon
     );
 
     let pose = Pose {
+        studio: 0.0,
         zoom: 1.0,
         focus: [0.0; 3],
         yaw: BASE_YAW + tilt_x * motion_tokens::TILT_YAW,

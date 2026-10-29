@@ -24,7 +24,20 @@ pub enum LightingEffect {
     Off,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+impl LightingEffect {
+    pub fn key_triggered(self) -> bool {
+        matches!(self, Self::Flash | Self::Ripples | Self::Reactive)
+    }
+    pub fn continuous(self) -> bool {
+        !self.key_triggered()
+            && !matches!(
+                self,
+                Self::Solid | Self::Off | Self::Fade | Self::Scan | Self::Storm
+            )
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LightingSettings {
     pub preset: u8,
     pub brightness: u8,
@@ -35,6 +48,7 @@ pub struct LightingSettings {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LightingPreset {
+    pub device_color: Option<Rgb>,
     pub effect: LightingEffect,
     pub saved: LightingSettings,
     pub brightness_max: Option<u8>,

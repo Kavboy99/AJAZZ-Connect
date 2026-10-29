@@ -6,6 +6,7 @@ use eframe::egui::{Color32, FontFamily, FontId, RichText, Ui};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Caption,
+    CaptionLight,
     Body,
     BodyStrong,
     Subtitle,
@@ -17,7 +18,7 @@ pub enum Role {
 impl Role {
     pub fn size(self) -> f32 {
         match self {
-            Role::Caption => 12.0,
+            Role::Caption | Role::CaptionLight => 12.0,
             Role::Body | Role::BodyStrong | Role::Mono => 14.0,
             Role::Subtitle => 20.0,
             Role::Title => 28.0,
@@ -26,7 +27,7 @@ impl Role {
 
     pub fn line_height(self) -> f32 {
         match self {
-            Role::Caption => 16.0,
+            Role::Caption | Role::CaptionLight => 16.0,
             Role::Body | Role::BodyStrong | Role::Mono => 20.0,
             Role::Subtitle => 28.0,
             Role::Title => 36.0,
@@ -35,6 +36,7 @@ impl Role {
 
     pub fn font(self) -> FontId {
         let family = match self {
+            Role::CaptionLight => fonts::light(),
             Role::Caption | Role::Body => FontFamily::Proportional,
             Role::BodyStrong | Role::Subtitle | Role::Title => fonts::semibold(),
             Role::Mono => FontFamily::Monospace,

@@ -23,6 +23,8 @@ pub struct LightingTraits {
 /// What a successful operation proved. The interface words each case differently.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Outcome {
+    BackupSaved,
+    ConfigurationRestored,
     /// The state read back matches what was written.
     Confirmed,
     /// The mode read back matches, but this firmware reports a palette instead of the color.
@@ -30,7 +32,9 @@ pub enum Outcome {
     /// Every packet was acknowledged; the protocol has no read-back.
     Acknowledged,
     /// The packets were sent; the standard defines no acknowledgement.
-    Sent { lamps: usize },
+    Sent {
+        lamps: usize,
+    },
     /// A local service confirmed the new state in its own model.
     ServiceConfirmed,
     /// The state from before the first change is back.

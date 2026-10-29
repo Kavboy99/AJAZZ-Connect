@@ -1,4 +1,4 @@
-//! The window: navigation pane on the left (the only place the Mica backdrop shows through), an
+//! The window: navigation pane on the left (the only place the acrylic backdrop shows through), an
 //! opaque content layer on the right, and directional transitions between pages.
 
 use super::device_reveal::Reveal;
@@ -7,7 +7,6 @@ use super::motion::{self, Channel, Style, Transition, tokens};
 mod content;
 use super::pages::{Model, Pages, Route, set_settling};
 use super::strings as s;
-use super::theme::mode;
 use super::theme::{Role, breakpoint, color, radius, size, space};
 use super::widgets::{Button, Interaction, focus_ring, mix};
 use crate::app::{Settings, Theme};
@@ -119,7 +118,7 @@ impl Shell {
                 let reveal = ((width - size::NAV_COLLAPSED)
                     / (size::NAV_EXPANDED - size::NAV_COLLAPSED))
                     .clamp(0.0, 1.0);
-                self.navigation(ui, reveal, model.settings)
+                self.navigation(ui, reveal, model.settings, super::theme::mode::blend())
             });
         // Pages choose their columns for the width they will have when the pane settles, so a
         // collapsing pane never flips the layout halfway through.
@@ -145,7 +144,7 @@ impl Shell {
             });
     }
 
-    fn navigation(&mut self, ui: &mut Ui, reveal: f32, settings: &mut Settings) {
+    fn navigation(&mut self, ui: &mut Ui, reveal: f32, settings: &mut Settings, theme_blend: f32) {
         ui.add_space(space::S);
         ui.horizontal(|ui| {
             ui.add_space(space::S);
@@ -212,7 +211,7 @@ impl Shell {
             if hit {
                 clicked = Some(route);
             }
-            if theme_item(ui, settings.theme, reveal) {
+            if theme_item(ui, settings.theme, reveal, theme_blend) {
                 settings.theme = settings.theme.toggled();
                 // The switch applies now; a failed save only loses it on the next launch.
                 let _ = settings.save();
@@ -307,12 +306,11 @@ fn nav_item(
 }
 
 /// The theme switch: sun and moon cross-fade and turn with the theme blend itself.
-fn theme_item(ui: &mut Ui, theme: Theme, reveal: f32) -> bool {
+fn theme_item(ui: &mut Ui, theme: Theme, reveal: f32, t: f32) -> bool {
     let text = match theme {
         Theme::Dark => s::THEME_TO_LIGHT,
         Theme::Light => s::THEME_TO_DARK,
     };
-    let t = mode::blend();
     let (_, clicked) = nav_item(ui, text, false, reveal, |painter, rect| {
         let ink = color::TEXT_PRIMARY.get();
         Icon::Sun.paint_rotated(painter, rect, ink.gamma_multiply(1.0 - t), t * FRAC_PI_2);

@@ -1,9 +1,17 @@
 use super::{DevicePage, Mode, State};
 use crate::ui::motion::{self, Channel, tokens};
+use crate::ui::theme::tokens::device_stage;
 use crate::ui::theme::{Role, color, size, space};
 use crate::ui::{device_reveal, icons::Icon, strings as s, viewer};
 use eframe::egui::{Id, Rect, Ui, UiBuilder, Vec2, pos2};
-pub(super) fn draw(ui: &mut Ui, id: Id, page: &DevicePage<'_>, stage: Rect, state: &mut State) {
+pub(super) fn draw(
+    ui: &mut Ui,
+    id: Id,
+    page: &DevicePage<'_>,
+    stage: Rect,
+    destination: Rect,
+    state: &mut State,
+) {
     let encoder = state.mode == Mode::Encoder;
     let editing = state.mode != Mode::Overview;
     let toward = ui
@@ -18,14 +26,14 @@ pub(super) fn draw(ui: &mut Ui, id: Id, page: &DevicePage<'_>, stage: Rect, stat
         ui.ctx(),
         id.with("tilt-x"),
         toward.x,
-        tokens::TILT,
+        tokens::WORKSPACE,
         Channel::Scale,
     );
     let tilt_y = motion::animate(
         ui.ctx(),
         id.with("tilt-y"),
         toward.y,
-        tokens::TILT,
+        tokens::WORKSPACE,
         Channel::Scale,
     );
     let animate = |name, target| {
@@ -33,7 +41,7 @@ pub(super) fn draw(ui: &mut Ui, id: Id, page: &DevicePage<'_>, stage: Rect, stat
             ui.ctx(),
             id.with(name),
             target,
-            tokens::DEVICE_REVEAL,
+            tokens::WORKSPACE,
             Channel::Scale,
         )
     };
@@ -55,6 +63,7 @@ pub(super) fn draw(ui: &mut Ui, id: Id, page: &DevicePage<'_>, stage: Rect, stat
         )
     });
     let pose = viewer::Pose {
+        studio: device_reveal::opacity(ui.ctx()).clamp(0.0, 1.0),
         yaw: animate("yaw", if editing { 0.0 } else { -0.24 })
             + tilt_x * crate::ui::theme::motion_tokens::TILT_YAW,
         pitch: animate(
@@ -81,14 +90,23 @@ pub(super) fn draw(ui: &mut Ui, id: Id, page: &DevicePage<'_>, stage: Rect, stat
     let preview = state.preview(ui, id);
     // A keyboard is wide: allow its transparent square to extend past the stage vertically.
     let aspect = viewer::binding(page.view.visual).map_or(1.0, |b| b.stage_aspect());
-    let side = if encoder {
-        stage.width()
-    } else {
-        stage.width().min(stage.height() * aspect)
-    };
-    let square = Rect::from_center_size(stage.center(), Vec2::splat(side));
+    let square = super::framing::animate(ui.ctx(), id, destination, aspect, encoder);
+    let revealed = device_reveal::stage(ui.ctx(), square);
+    // Tile stages reserve a footer; their model square still spans the full tile width.
+    let square = Rect::from_center_size(revealed.center(), Vec2::splat(revealed.width()));
     let mut model_ui = ui.new_child(UiBuilder::new().max_rect(stage));
     model_ui.set_clip_rect(stage.intersect(ui.clip_rect()));
+    crate::ui::widgets::stage_spot(
+        model_ui.painter(),
+        square.center() + Vec2::new(0.0, square.height() * device_stage::SHADOW_OFFSET),
+        Vec2::new(
+            square.width() * device_stage::SHADOW_WIDTH,
+            square.height() * device_stage::SHADOW_HEIGHT,
+        ),
+        color::DEVICE_SHADOW
+            .get()
+            .gamma_multiply(device_stage::SHADOW_ALPHA * pose.studio),
+    );
     let shown = page.view.visual.map_or(viewer::Shown::Missing, |visual| {
         viewer::show_preview(
             &model_ui,

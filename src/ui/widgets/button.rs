@@ -1,6 +1,7 @@
 use super::interaction::{Interaction, focus_ring};
 use super::spinner;
 use crate::ui::icons::Icon;
+use crate::ui::motion::{self, Channel, tokens};
 use crate::ui::theme::{Role, color, radius, size, space};
 use eframe::egui::{
     Color32, CornerRadius, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, Widget,
@@ -204,10 +205,30 @@ impl Widget for Button<'_> {
             shape.transform(transform);
         }
         painter.extend(shapes);
-        if self.busy {
-            spinner::paint(ui, transform.mul_rect(icon_rect), ink);
-        } else if let Some(icon) = self.icon {
-            icon.paint(painter, transform.mul_rect(icon_rect), ink);
+        let progress = if self.icon.is_some() {
+            motion::animate(
+                ui.ctx(),
+                response.id.with("busy"),
+                f32::from(self.busy),
+                tokens::FAST,
+                Channel::Fade,
+            )
+        } else {
+            f32::from(self.busy)
+        };
+        if progress > 0.0 {
+            spinner::paint(
+                ui,
+                transform.mul_rect(icon_rect),
+                ink.gamma_multiply(progress),
+            );
+        }
+        if let Some(icon) = self.icon {
+            icon.paint(
+                painter,
+                transform.mul_rect(icon_rect),
+                ink.gamma_multiply(1.0 - progress),
+            );
         }
         focus_ring(painter, rect, radius::CONTROL, state.focus);
         response

@@ -24,9 +24,15 @@ pub(crate) struct State {
     pub hardware: super::super::lighting::State,
     pub(super) programs: Option<super::programs::Programs>,
     pub preview_requires_usb: bool,
+    pub preferences_dirty: bool,
+    pub preferences_failed: bool,
+    pub(super) apply: super::apply::State,
     panel_is_inspector: bool,
     demo_left: f32,
     keys: HashMap<Key, f32>,
+    native_phase: f32,
+    hits: HashMap<Key, f32>,
+    held: std::collections::HashSet<Key>,
 }
 
 impl Default for State {
@@ -43,8 +49,14 @@ impl Default for State {
             programs: None,
             preview_requires_usb: false,
             panel_is_inspector: false,
+            preferences_dirty: false,
+            preferences_failed: false,
+            apply: super::apply::State::default(),
             demo_left: 0.0,
             keys: HashMap::new(),
+            native_phase: 0.0,
+            hits: HashMap::new(),
+            held: Default::default(),
         }
     }
 }
@@ -86,6 +98,7 @@ impl State {
     }
 
     pub fn replay(&mut self) {
+        self.native_phase = 0.0;
         self.demo_left = if self.mode == Mode::Lighting
             && (self.effect == Effect::Wave || self.programs.is_some())
         {
@@ -96,7 +109,11 @@ impl State {
     }
 
     pub fn demonstration_phase(&self) -> f32 {
-        1.6 - self.demo_left
+        if self.programs.is_some() {
+            self.native_phase
+        } else {
+            1.6 - self.demo_left
+        }
     }
 
     pub fn open_inspector(&mut self) {
@@ -124,8 +141,26 @@ impl State {
                 Default::default()
             }
         });
+        for age in self.hits.values_mut() {
+            *age += motion::dt(ui.ctx());
+        }
+        self.hits
+            .retain(|_, age| *age < crate::ui::viewer::reactive::LIFETIME);
         for key in down.iter() {
+            if !self.held.contains(key) {
+                self.hits.insert(*key, 0.0);
+            }
             self.keys.insert(*key, 1.0);
+        }
+        self.held = down.clone();
+        if self.mode == Mode::Lighting
+            && self
+                .programs
+                .as_ref()
+                .is_some_and(|p| p.preset().effect.key_triggered())
+            && !self.hits.is_empty()
+        {
+            motion::keep_alive(ui.ctx());
         }
         for (key, strength) in &mut self.keys {
             if !down.contains(key) {
@@ -136,8 +171,24 @@ impl State {
             }
         }
         self.keys.retain(|_, v| *v > 0.0);
+        let looping = self.mode == Mode::Lighting
+            && self
+                .programs
+                .as_ref()
+                .is_some_and(|p| p.preset().effect.continuous())
+            && ui.input(|i| i.focused)
+            && !motion::reduced(ui.ctx());
+        if looping {
+            self.native_phase += motion::dt(ui.ctx())
+                * self.programs.as_ref().map_or(1.0, |p| {
+                    crate::ui::viewer::effect_speed::factor(p.settings().speed)
+                });
+            motion::keep_alive(ui.ctx());
+        }
         let phase = if motion::reduced(ui.ctx()) {
             0.0
+        } else if self.programs.is_some() {
+            self.native_phase
         } else {
             1.6 - self.demo_left
         };
@@ -161,6 +212,13 @@ impl State {
             .into_iter()
             .enumerate()
             .map(|(index, c)| {
+                let c = self
+                    .programs
+                    .as_ref()
+                    .and_then(|p| p.settings().color)
+                    .map_or(c, |rgb| {
+                        eframe::egui::Color32::from_rgb(rgb.r, rgb.g, rgb.b)
+                    });
                 motion::animate_color(ui.ctx(), id.with(("color", index)), c, tokens::FAST)
             })
             .collect();
@@ -173,6 +231,7 @@ impl State {
             Channel::Fade,
         );
         Preview {
+            hits: self.hits.clone(),
             native: if self.mode == Mode::Lighting {
                 self.programs.as_ref().map(|p| p.preset().effect)
             } else {
@@ -187,11 +246,7 @@ impl State {
             ),
             effect: (self.mode == Mode::Lighting).then_some(self.effect),
             colors,
-            phase: phase
-                * self
-                    .programs
-                    .as_ref()
-                    .map_or(1.0, |p| 0.5 + f32::from(p.settings().speed) * 0.5),
+            phase,
             keys: self.keys.clone(),
             modifiers,
         }

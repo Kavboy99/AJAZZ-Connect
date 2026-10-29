@@ -1,4 +1,4 @@
-//! Native program drafts stay local until the explicit device action is pressed.
+//! Native drafts and the independently observed program on the device.
 use super::State;
 use crate::core::{LightingEditor, LightingEffect, LightingPreset, LightingSettings};
 
@@ -9,9 +9,18 @@ pub(super) struct Programs {
     source: LightingEditor,
     pub presets: Vec<LightingPreset>,
     pub selected: usize,
+    confirmed: Option<u8>,
 }
 
 impl Programs {
+    pub fn observe_device(&mut self, current: Option<u8>, failed: bool) {
+        if !failed {
+            self.confirmed = current;
+        }
+    }
+    pub fn is_applied(&self, preset: u8) -> bool {
+        self.confirmed == Some(preset)
+    }
     pub fn settings(&self) -> LightingSettings {
         self.presets[self.selected].saved
     }
@@ -31,11 +40,22 @@ pub(super) fn sync(state: &mut State, source: Option<&LightingEditor>) {
             .iter()
             .position(|p| p.saved.preset == source.current)
             .unwrap_or(0);
+        if state.programs.is_some() {
+            return;
+        }
         state.programs = Some(Programs {
             source: source.clone(),
             presets: source.presets.clone(),
             selected,
+            confirmed: None,
         });
+        if let Some(p) = &mut state.programs {
+            for preset in &mut p.presets {
+                if preset.custom_color {
+                    preset.saved.color = Some(state.palette.rgb());
+                }
+            }
+        }
         update_preview(state);
     }
 }
@@ -44,11 +64,14 @@ pub(super) fn update_preview(state: &mut State) {
     if let Some(p) = &state.programs {
         state.effect = match p.preset().effect {
             LightingEffect::Solid | LightingEffect::Off => Effect::Solid,
-            LightingEffect::Reactive | LightingEffect::Ripples | LightingEffect::Fade => {
+            LightingEffect::Reactive | LightingEffect::Ripples | LightingEffect::Flash => {
                 Effect::Reactive
             }
             _ => Effect::Wave,
         };
+    }
+    if let Some(rgb) = state.programs.as_ref().and_then(|p| p.settings().color) {
+        state.palette.set_rgb(rgb);
     }
     state.replay();
 }
@@ -63,22 +86,24 @@ pub(super) fn controls(ui: &mut Ui, state: &mut State) {
     };
     let p = programs.preset_mut();
     if let Some(max) = p.brightness_max {
-        ui.add(
-            eframe::egui::Slider::new(&mut p.saved.brightness, 0..=max).text(s::STUDIO_BRIGHTNESS),
+        crate::ui::widgets::lighting_slider::lighting_slider(
+            ui,
+            s::STUDIO_BRIGHTNESS,
+            &mut p.saved.brightness,
+            0..=max,
+            "",
         );
     }
-    let speed_changed = p.speed_max.is_some_and(|max| {
-        ui.add(eframe::egui::Slider::new(&mut p.saved.speed, 0..=max).text(s::LIGHTING_SPEED))
-            .changed()
-    });
-    if speed_changed {
-        state.replay();
+    if let Some(max) = p.speed_max {
+        crate::ui::widgets::lighting_slider::lighting_slider(
+            ui,
+            s::LIGHTING_SPEED,
+            &mut p.saved.speed,
+            0..=max,
+            "",
+        )
+        .on_hover_text(s::LIGHTING_SPEED_HINT);
     }
-    ui.label(if state.preview_requires_usb {
-        s::LIGHTING_PREVIEW_ONLY
-    } else {
-        s::LIGHTING_DRAFT_HINT
-    });
 }
 
 pub(super) fn brightness(state: &State) -> f32 {
@@ -98,10 +123,52 @@ mod tests {
     use super::*;
 
     #[test]
+    fn preview_and_drafts_never_move_the_device_checkmark_and_failure_keeps_it() {
+        let source = LightingEditor {
+            current: 1,
+            presets: (1..=2)
+                .map(|preset| LightingPreset {
+                    device_color: None,
+                    effect: LightingEffect::Breathing,
+                    saved: LightingSettings {
+                        preset,
+                        brightness: 3,
+                        speed: 2,
+                        color: None,
+                    },
+                    brightness_max: Some(4),
+                    speed_max: Some(4),
+                    custom_color: true,
+                })
+                .collect(),
+        };
+        let mut state = State::default();
+        sync(&mut state, Some(&source));
+        let p = state.programs.as_mut().unwrap();
+        assert!(
+            !p.is_applied(source.current),
+            "offline catalog has no device state"
+        );
+        p.observe_device(Some(source.current), false);
+        p.selected = 1;
+        p.preset_mut().saved.brightness = 1;
+        let draft = p.settings();
+        assert!(p.is_applied(source.current));
+        p.observe_device(Some(draft.preset), true);
+        assert!(p.is_applied(source.current));
+        p.observe_device(Some(draft.preset), false);
+        assert!(p.is_applied(draft.preset));
+        assert_eq!(p.settings(), draft);
+        p.observe_device(None, false);
+        assert!(!p.is_applied(draft.preset));
+    }
+
+    #[test]
     fn drafts_survive_frames_and_mode_switches_until_a_confirmed_device_update() {
         let mut source = LightingEditor {
             current: 5,
             presets: vec![LightingPreset {
+                device_color: None,
                 effect: LightingEffect::Solid,
                 saved: LightingSettings {
                     preset: 5,
@@ -130,6 +197,6 @@ mod tests {
         assert_eq!(brightness(&state), 0.0);
         source.presets[0].saved.brightness = 2;
         sync(&mut state, Some(&source));
-        assert_eq!(brightness(&state), 0.5);
+        assert_eq!(brightness(&state), 0.0);
     }
 }

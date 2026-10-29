@@ -3,6 +3,9 @@
 /dist-connect/
 /source-dist/
 /verification/
+/lusorium-backup.exe
+/lusorium-backup-portable.zip
+/device-backups/
 /research/original/
 *.log
 

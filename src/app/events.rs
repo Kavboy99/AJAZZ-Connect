@@ -61,8 +61,10 @@ impl Events {
         let tx = self.tx.clone();
         let waker = Arc::clone(&self.waker);
         std::thread::spawn(move || {
+            crate::diagnostics::logging::event("worker", "job", "start");
             // The receiver is gone only when the application is closing.
             let _ = tx.send(job());
+            crate::diagnostics::logging::event("worker", "job", "completed");
             waker();
         });
     }

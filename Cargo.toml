@@ -2,6 +2,7 @@
 name = "lusorium-studio"
 version = "0.3.0"
 edition = "2024"
+default-run = "lusorium-studio"
 description = "Lusorium Studio: configuration and lighting for PC peripherals (SONiX, HID LampArray, OpenRGB SDK)"
 license = "MIT"
 
@@ -18,11 +19,13 @@ anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+flate2 = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 eframe = { version = "0.33", default-features = false, features = ["wgpu", "default_fonts"] }
 bytemuck = { version = "1", features = ["derive"] }
 ab_glyph = "0.2"
 pollster = "0.4"
+wgpu-types = "27"
 wgpu = { version = "27", default-features = false, features = ["std", "dx12", "wgsl"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 rfd = { version = "0.15", default-features = false }
@@ -31,8 +34,10 @@ toml = { version = "1.1.8", default-features = false, features = ["parse", "serd
 
 [target.'cfg(windows)'.dependencies]
 hidapi = { version = "2.6", default-features = false, features = ["windows-native"] }
-# Mica backdrop behind the navigation pane through DWM (docs/DESIGN.md, section 6).
-window-vibrancy = "0.8.1"
+# Shared DWM acrylic behind the navigation pane (docs/DESIGN.md, section 6).
+
+raw-window-handle = "0.6"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_UI_Controls", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 lto = "thin"
@@ -40,3 +45,7 @@ strip = true
 
 [dev-dependencies]
 naga = { version = "27", features = ["wgsl-in"] }
+
+[[bin]]
+name = "lusorium-backup"
+path = "src/bin/backup.rs"

@@ -89,15 +89,21 @@ impl Attachments {
         }
         for (pipeline, group, output, extent) in [
             (
-                &p.horizontal,
+                &p.downsample,
                 &self.blur_groups[0],
                 &self.bloom[0],
                 side.div_ceil(4),
             ),
             (
-                &p.vertical,
+                &p.horizontal,
                 &self.blur_groups[1],
                 &self.bloom[1],
+                side.div_ceil(4),
+            ),
+            (
+                &p.vertical,
+                &self.blur_groups[2],
+                &self.bloom[0],
                 side.div_ceil(4),
             ),
             (&p.composite, &self.post, output, side),

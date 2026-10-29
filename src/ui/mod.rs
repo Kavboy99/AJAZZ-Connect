@@ -2,6 +2,9 @@
 //! and draws the sections that exist.
 
 mod app;
+mod backup_actions;
+mod backup_panel;
+pub(crate) mod backup_tool;
 mod icons;
 mod motion;
 mod pages;
@@ -23,45 +26,45 @@ use std::sync::Arc;
 /// Window and taskbar icon side; Windows scales it down for small sizes.
 const WINDOW_ICON: u32 = 64;
 
-/// Mica behind the window, shown through the navigation pane. DWM does the blur; when Windows
-/// cannot provide it (Windows 10, transparency off), the pane falls back to an opaque token.
 #[cfg(windows)]
-fn apply_backdrop(cc: &eframe::CreationContext<'_>, dark: bool) -> bool {
-    window_vibrancy::apply_mica(cc, Some(dark)).is_ok()
-}
-
-#[cfg(not(windows))]
-fn apply_backdrop(_: &eframe::CreationContext<'_>, _: bool) -> bool {
-    false
-}
-
-/// Re-tints Mica (and the title bar) after the user switches themes.
-#[cfg(windows)]
-fn tint_backdrop(frame: &eframe::Frame, dark: bool) {
-    // Without Mica the pane already shows the opaque token; nothing else depends on this call.
-    let _ = window_vibrancy::apply_mica(frame, Some(dark));
-}
-
-#[cfg(not(windows))]
-fn tint_backdrop(_: &eframe::Frame, _: bool) {}
+mod backdrop;
 
 pub fn run() -> anyhow::Result<()> {
     run_window(None)
 }
+pub fn run_backup() -> anyhow::Result<()> {
+    backup_tool::run()
+}
 pub fn run_preview(
     found: crate::app::events::Discovered,
     metrics: std::path::PathBuf,
+    theme: Theme,
 ) -> anyhow::Result<()> {
-    run_window(Some((found, metrics)))
+    run_window(Some((found, metrics, theme)))
 }
 fn run_window(
-    preview: Option<(crate::app::events::Discovered, std::path::PathBuf)>,
+    preview: Option<(crate::app::events::Discovered, std::path::PathBuf, Theme)>,
 ) -> anyhow::Result<()> {
+    let settings = if let Some((_, _, theme)) = &preview {
+        Settings {
+            ephemeral: true,
+            theme: *theme,
+            ..Settings::default()
+        }
+    } else {
+        Settings::load()
+    };
+    if !settings.ephemeral {
+        crate::diagnostics::logging::install_panic_hook();
+        let _ = crate::diagnostics::logging::configure(settings.logging_enabled);
+        crate::diagnostics::logging::event("application", "studio.start", "ok");
+    }
+    let title = identity::PRODUCT_NAME;
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         wgpu_options: viewer::gpu::configuration(),
         viewport: ViewportBuilder::default()
-            .with_title(identity::PRODUCT_NAME)
+            .with_title(title)
             .with_inner_size([1360.0, 840.0])
             .with_min_inner_size([720.0, 520.0])
             .with_transparent(true)
@@ -73,7 +76,7 @@ fn run_window(
         ..Default::default()
     };
     eframe::run_native(
-        identity::PRODUCT_NAME,
+        title,
         options,
         Box::new(|cc| {
             let gpu = cc
@@ -81,14 +84,8 @@ fn run_window(
                 .clone()
                 .ok_or_else(|| anyhow::anyhow!("GPU renderer unavailable"))?;
             viewer::gpu::install_native(&cc.egui_ctx, gpu);
-            let settings = if preview.is_some() {
-                Settings::default()
-            } else {
-                Settings::load()
-            };
-            let backdrop = apply_backdrop(cc, settings.theme == Theme::Dark);
-            let mut app = App::new(&cc.egui_ctx, backdrop, settings);
-            if let Some((found, metrics)) = preview {
+            let mut app = App::new(&cc.egui_ctx, false, settings);
+            if let Some((found, metrics, _)) = preview {
                 app.session_mut().adopt(found);
                 app.open(Route::Device(0));
                 app.capture_gpu_metrics(&cc.egui_ctx, metrics);

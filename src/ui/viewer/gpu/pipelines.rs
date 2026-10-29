@@ -2,6 +2,7 @@ use super::mesh;
 pub(super) struct Pipelines {
     pub main: wgpu::RenderPipeline,
     pub shadow: wgpu::RenderPipeline,
+    pub downsample: wgpu::RenderPipeline,
     pub horizontal: wgpu::RenderPipeline,
     pub vertical: wgpu::RenderPipeline,
     pub composite: wgpu::RenderPipeline,
@@ -227,6 +228,12 @@ impl Pipelines {
                 cache: None,
             })
         };
+        let downsample = full_screen(
+            "LED bloom prefilter",
+            "downsample",
+            &blur,
+            wgpu::TextureFormat::Rgba16Float,
+        );
         let horizontal = full_screen(
             "horizontal LED bloom",
             "horizontal",
@@ -248,6 +255,7 @@ impl Pipelines {
         Self {
             main,
             shadow,
+            downsample,
             horizontal,
             vertical,
             composite,

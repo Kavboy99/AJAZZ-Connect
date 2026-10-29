@@ -1,4 +1,5 @@
 use super::backup::Backup;
+mod configuration;
 use super::codec::{self, GET_INFO, GET_LED_EFFECT, REPORT_BYTES, SET_LED_EFFECT};
 use super::info::KeyboardInfo;
 use super::{ID, VENDOR_LOCK, admits, descriptor};
@@ -20,6 +21,9 @@ const INFO: DriverInfo = DriverInfo {
 pub struct Aa55Driver;
 
 impl Driver for Aa55Driver {
+    fn supports_configuration_backup(&self) -> bool {
+        true
+    }
     fn info(&self) -> DriverInfo {
         INFO
     }
@@ -91,6 +95,7 @@ fn transaction(
     command: u8,
     payload: Option<&[u8]>,
 ) -> Result<Vec<u8>, DriverError> {
+    crate::diagnostics::logging::command(ID, command, payload.is_some());
     let mut quiet = false;
     for _ in 0..64 {
         let mut b = [0; REPORT_BYTES];
@@ -207,6 +212,9 @@ impl Aa55Device {
 }
 
 impl Device for Aa55Device {
+    fn configuration_backup(&mut self) -> Option<&mut dyn crate::core::ConfigurationBackup> {
+        Some(self)
+    }
     fn descriptor(&self) -> &DeviceDescriptor {
         &self.descriptor
     }
@@ -250,10 +258,6 @@ impl Lighting for Aa55Device {
     }
 
     fn restore_snapshot(&mut self, snapshot: &Snapshot) -> Result<Outcome, DriverError> {
-        let backup: Backup = snapshot.parse()?;
-        backup.check(&self.identity, &self.protocol_identity)?;
-        let exchange = self.exchange()?;
-        self.write_lighting(exchange.channel.as_ref(), &backup.lighting)
-            .map(Self::restored)
+        crate::core::ConfigurationBackup::recover(self, snapshot)
     }
 }

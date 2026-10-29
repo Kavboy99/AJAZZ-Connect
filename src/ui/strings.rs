@@ -30,20 +30,16 @@ pub const EXPERIMENTAL: &str = "Экспериментально";
 
 pub const LIGHTING: &str = "Подсветка";
 pub const LIGHTING_APPLY: &str = "Применить цвет";
+pub const LIGHTING_SELECT: &str = "Выбрать";
+pub const LIGHTING_APPLIED: &str = "Текущий режим на клавиатуре";
+pub const LIGHTING_SELECT_HINT: &str = "Применить этот режим и его настройки к клавиатуре";
+pub const LIGHTING_WRITE_BLOCKED: &str = "Запись подсветки недоступна.";
 pub const LIGHTING_APPLY_PROGRAM: &str = "Применить";
 pub const LIGHTING_RESTORE: &str = "Вернуть подсветку";
 pub const LIGHTING_FROM_BACKUP: &str = "Из резервной копии…";
 pub const LIGHTING_BACKUP_FILTER: &str = "Резервная копия подсветки";
 pub const LIGHTING_COLOR: &str = "Цвет";
 pub const LIGHTING_RUNNING: &str = "Обмен с устройством…";
-pub const LIGHTING_PERSISTENT: &str = "Подсветка сохраняется в памяти устройства.";
-pub const LIGHTING_BACKUP_FIRST: &str =
-    "Перед первой записью исходное состояние сохраняется в резервную копию.";
-pub const LIGHTING_NO_ROLLBACK: &str = "Отката нет: этот протокол не считывает исходный эффект. Вернуть режим можно сочетанием клавиш на устройстве.";
-pub const LIGHTING_SESSION_ONLY: &str = "Цвет не сохраняется в устройстве: при закрытии приложения подсветка вернётся к собственной программе.";
-pub const LIGHTING_NOT_WRITABLE: &str =
-    "Устройство не предоставляет режим прямого управления цветом без автосохранения.";
-pub const LIGHTING_EXPERIMENTAL: &str = "Драйвер не проверен на реальном устройстве. Применяйте, только если готовы проверить результат.";
 
 pub const DIAG_TITLE: &str = "Диагностика";
 pub const DIAG_LEAD: &str =
@@ -182,6 +178,8 @@ pub fn error(error: &DriverError) -> &'static str {
 
 pub fn outcome(outcome: Outcome) -> String {
     match outcome {
+        Outcome::BackupSaved => BACKUP_SAVED.into(),
+        Outcome::ConfigurationRestored => BACKUP_RESTORED.into(),
         Outcome::Confirmed => "Цвет применён и подтверждён обратным чтением.".into(),
         Outcome::ModeConfirmed => "Режим подтверждён; эта прошивка сообщает стандартную палитру. Проверьте цвет на устройстве.".into(),
         Outcome::Acknowledged => "Устройство подтвердило команды. Проверьте цвет на устройстве.".into(),
@@ -255,7 +253,6 @@ pub fn battery_mode_hint(mode: crate::app::battery::BatteryMode) -> &'static str
 }
 pub const STUDIO_LIGHTING: &str = "Настроить подсветку";
 pub const STUDIO_ENCODER: &str = "Настроить энкодер";
-pub const STUDIO_PREVIEW: &str = "Предпросмотр · без записи в устройство";
 pub const STUDIO_KEYS: &str = "Нажимайте клавиши в этом окне — модель откликнется";
 pub const STUDIO_SETTINGS: &str = "Настройки";
 pub const STUDIO_CLOSE_SETTINGS: &str = "Скрыть настройки";
@@ -267,24 +264,17 @@ pub const STUDIO_REACTIVE: &str = "Отклик";
 pub const STUDIO_VOLUME: &str = "Громкость";
 pub const STUDIO_SCROLL: &str = "Прокрутка";
 pub const STUDIO_BRIGHTNESS: &str = "Яркость";
-pub const STUDIO_REPLAY: &str = "Демонстрация";
 pub const STUDIO_ENCODER_HINT: &str = "Назначение энкодера пока доступно только в предпросмотре.";
 pub const STUDIO_ENCODER_STEP: &str = "Шаг поворота";
 pub const STUDIO_ENCODER_PRESS: &str = "Нажатие";
 pub const STUDIO_ENCODER_MUTE: &str = "Выключить звук";
 pub const STUDIO_ENCODER_PAUSE: &str = "Пауза / продолжить";
 pub const STUDIO_ENCODER_DEFAULT: &str = "Стандартное действие";
-pub const STUDIO_DEVICE_WRITE: &str = "Применение к устройству";
-pub const STUDIO_EFFECT_PREVIEW: &str = "Этот эффект пока доступен только на модели.";
-pub const STUDIO_MORE: &str = "Сведения";
 pub const LIGHTING_SPEED: &str = "Скорость";
-pub const LIGHTING_DRAFT_HINT: &str = "Изменения отправляются кнопкой «Применить».";
-pub const LIGHTING_NATIVE_PREVIEW: &str = "Условный предпросмотр. Эффект исполняется клавиатурой.";
-pub const LIGHTING_CONNECT_USB: &str = "Для управления подсветкой подключите клавиатуру USB-кабелем и включите проводной режим. Сейчас доступен только предпросмотр.";
-pub const LIGHTING_OFFLINE_CONTROLS: &str = "Предпросмотр настроек драйвера. Для записи откройте подключённое устройство; значения здесь примерные.";
-pub const LIGHTING_PREVIEW_VALUES: &str =
-    "Примерные настройки драйвера; состояние подсветки клавиатуры не считано.";
-pub const LIGHTING_PREVIEW_ONLY: &str = "Изменения видны только на модели.";
+pub const LIGHTING_SPEED_HINT: &str = "0 — очень медленно";
+pub const LIGHTING_CONNECT_USB: &str = "Для применения подсветки подключите устройство по USB.";
+pub const LIGHTING_OFFLINE_CONTROLS: &str = "Предпросмотр без подключения к устройству.";
+pub const LIGHTING_ENABLE_DRIVER: &str = "Включите экспериментальные драйверы в настройках.";
 
 pub fn lighting_effect(effect: crate::core::LightingEffect) -> &'static str {
     use crate::core::LightingEffect as E;
@@ -310,3 +300,33 @@ pub fn lighting_effect(effect: crate::core::LightingEffect) -> &'static str {
         E::Off => "Выключено",
     }
 }
+
+pub const LIGHTING_SATURATION: &str = "Насыщенность";
+pub const LIGHTING_KEY_TRIGGERED: &str = "Реагирует на нажатие клавиши";
+
+pub const BACKUP_SAVE: &str = "Сохранить бэкап";
+pub const BACKUP_LOAD: &str = "Восстановить из бэкапа";
+pub const BACKUP_ARCHIVE: &str = "Архив резервной копии";
+pub const BACKUP_UNSUPPORTED: &str = "Резервное копирование этого устройства пока не поддерживается. Для поддерживаемых устройств проверьте подключение по USB.";
+pub const BACKUP_SYSTEM_COVERAGE: &str = "Архив: системная конфигурация (128 байт) и палитра (512 байт). Не включает макросы, назначения клавиш, экран и прошивку.";
+pub const BACKUP_LIGHTING_COVERAGE: &str =
+    "Архив: блок подсветки. Не включает остальные настройки и прошивку.";
+pub const BACKUP_RESTORE_SYSTEM: &str = "Будет восстановлена системная конфигурация (128 байт). Палитра останется прежней: её запись заблокирована после сбоя. Архив должен принадлежать этому устройству и ревизии.";
+pub const BACKUP_RESTORE_LIGHTING: &str =
+    "Будет восстановлен сохранённый блок подсветки этого устройства и версии протокола.";
+pub const BACKUP_CONFIRM: &str = "Перед записью будет автоматически сохранена текущая конфигурация. Затем выполняется одна запись и проверка чтением, без автоматического повтора. Закройте другие программы управления устройством. Восстановить?";
+pub const BACKUP_REJECTED: &str = "Восстановление отменено: архив повреждён, несовместим с этим устройством или устройство занято. Запись не выполнялась.";
+pub const BACKUP_SAVED: &str = "Архив сохранён на компьютере. Настройки устройства не изменялись.";
+pub const BACKUP_RESTORED: &str =
+    "Конфигурация восстановлена и проверена чтением. Проверьте нажатия клавиш.";
+
+pub const SETTINGS_LOGGING: &str = "Включить журналирование для всех драйверов";
+pub const SETTINGS_LOGGING_HINT: &str = "Записывает действия, операции, коды команд, размеры, длительность и ошибки без содержимого пакетов, нажатий клавиш, серийных номеров и путей устройств. До четырёх журналов по 2 МБ. При аварийном завершении сохраняет отметку и место паники.";
+pub const SETTINGS_LOGGING_FAILED: &str = "Не удалось открыть журнал. Журналирование выключено.";
+pub const SETTINGS_OPEN_LOGS: &str = "Открыть папку журналов";
+
+pub const BACKUP_TITLE: &str = "Резервные копии";
+pub const BACKUP_PANEL_LEAD: &str = "Выберите подключённое устройство и сохраните копию или восстановите её из архива. Архив содержит только данные, перечисленные ниже.";
+pub const BACKUP_REFRESH: &str = "Найти устройства";
+pub const BACKUP_SELECT: &str = "Выберите устройство";
+pub const BACKUP_EMPTY: &str = "Подключите устройство по USB и нажмите «Найти устройства». Неизвестные протоколы доступны только для просмотра.";

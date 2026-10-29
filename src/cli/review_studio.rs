@@ -17,6 +17,12 @@ fn setup_native(app: &mut App) {
     app.open(Route::Device(0));
 }
 
+fn setup_breathing(app: &mut App) {
+    app.session_mut()
+        .adopt(super::review_state::native_devices_for(1));
+    app.open(Route::Device(0));
+}
+
 fn setup_rain(app: &mut App) {
     app.session_mut()
         .adopt(super::review_state::native_devices_for(4));
@@ -48,6 +54,7 @@ pub(super) fn scenes() -> Vec<Scene> {
         ("studio-native-windmill", Theme::Dark, 840.0),
         ("studio-native-settings", Theme::Dark, 840.0),
         ("studio-native-settings-short", Theme::Dark, 520.0),
+        ("studio-native-settings-short-light", Theme::Light, 520.0),
         ("studio-native-scroll", Theme::Dark, 840.0),
         ("studio-wave", Theme::Dark, 840.0),
         ("studio-reactive", Theme::Dark, 840.0),
@@ -77,6 +84,8 @@ pub(super) fn scenes() -> Vec<Scene> {
             setup_snake
         } else if name == "studio-native-windmill" {
             setup_windmill
+        } else if name.starts_with("studio-native-settings") {
+            setup_breathing
         } else if name.starts_with("studio-native-") {
             setup_native
         } else {
@@ -131,6 +140,12 @@ pub(super) fn input(
     shapes: &[ClippedShape],
     screen: Rect,
 ) -> Result<Vec<Event>> {
+    if let Some(events) = super::review_illumination::input(name, frame) {
+        return Ok(events);
+    }
+    if let Some(events) = super::review_commit::input(name, frame, shapes)? {
+        return Ok(events);
+    }
     if let Some(events) = super::review_lighting::input(name, frame, shapes)? {
         return Ok(events);
     }
@@ -139,7 +154,7 @@ pub(super) fn input(
             Event::PointerMoved(pos2(screen.center().x, screen.bottom() - 100.0)),
             Event::MouseWheel {
                 unit: eframe::egui::MouseWheelUnit::Point,
-                delta: eframe::egui::vec2(0.0, -5000.0),
+                delta: eframe::egui::vec2(0.0, -50000.0),
                 modifiers: Modifiers::NONE,
             },
         ]);
@@ -180,7 +195,7 @@ pub(super) fn input(
         return click(
             shapes,
             s::STUDIO_SETTINGS,
-            usize::from(name == "studio-palette"),
+            usize::from(name == "studio-palette" || name.starts_with("studio-native-settings")),
             frame == 70,
         );
     }
@@ -204,6 +219,9 @@ pub(super) fn input(
     }
     if name == "studio-reverse" && (frame == 77 || frame == 81) {
         return Ok(vec![key(Key::Escape, false)]);
+    }
+    if name == "studio-native-ripples" && (frame == 58 || frame == 68) {
+        return Ok(vec![key(Key::A, frame == 58), key(Key::Space, frame == 58)]);
     }
     if name == "studio-reactive" && (frame == 118 || frame == 128) {
         return Ok(vec![
@@ -234,7 +252,37 @@ fn key(key: Key, pressed: bool) -> Event {
 }
 
 pub(super) fn verify(name: &str, shapes: &[ClippedShape], screen: Rect) -> Result<()> {
+    if super::review_illumination::is_overview(name) {
+        let mut found = Vec::new();
+        for shape in shapes {
+            labels(&shape.shape, s::STUDIO_LIGHTING, &mut found);
+        }
+        ensure!(
+            found.iter().any(|r| screen.contains_rect(*r)),
+            "overview action clipped"
+        );
+        return Ok(());
+    }
     super::review_lighting::verify(name, shapes, screen)?;
+    if name.starts_with("studio-native-settings") {
+        for text in [
+            s::LIGHTING_SATURATION,
+            s::STUDIO_BRIGHTNESS,
+            s::LIGHTING_SPEED,
+            s::LIGHTING_APPLY_PROGRAM,
+            s::LIGHTING_RESTORE,
+        ] {
+            let mut found = Vec::new();
+            for shape in shapes {
+                labels(&shape.shape, text, &mut found);
+            }
+            ensure!(
+                found.iter().any(|r| screen.contains_rect(*r)
+                    && shapes.iter().any(|s| s.clip_rect.contains_rect(*r))),
+                "{name}: inspector control clipped: {text}"
+            );
+        }
+    }
     if name == "studio-native-scroll" || name == "studio-native-settings" {
         let target = if name.ends_with("scroll") {
             s::lighting_effect(crate::core::LightingEffect::Off)
@@ -266,10 +314,8 @@ pub(super) fn verify(name: &str, shapes: &[ClippedShape], screen: Rect) -> Resul
         );
     }
     let mut labels_found = Vec::new();
-    let label = if name == "studio-reverse" || name == "studio-close" {
+    let label = if name == "studio-reverse" || name == "studio-close" || name == "studio-back" {
         s::STUDIO_LIGHTING
-    } else if name == "studio-back" {
-        s::DEVICES_TITLE
     } else {
         s::STUDIO_SETTINGS
     };
@@ -282,6 +328,8 @@ pub(super) fn verify(name: &str, shapes: &[ClippedShape], screen: Rect) -> Resul
     );
     ensure!(
         if name.starts_with("studio-native-")
+            || name.starts_with("studio-depth-")
+            || name.starts_with("studio-commit-")
             || name == "studio-connection-settings"
             || name == "studio-catalog-settings"
         {

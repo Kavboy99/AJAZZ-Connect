@@ -1,9 +1,9 @@
 //! Compact identity on the trailing side of the device stage.
 use super::device_view::DeviceView;
 use super::layout::spans;
-use crate::ui::theme::{Role, color, label, size, space};
+use crate::ui::theme::{Role, color, label, rich, size, space};
 use crate::ui::{icons::Icon, strings as s};
-use eframe::egui::Ui;
+use eframe::egui::{Label, Response, Ui};
 
 pub(super) fn identity(ui: &mut Ui, d: &DeviceView<'_>, preview: bool, dormant: bool) {
     spans(
@@ -20,7 +20,7 @@ pub(super) fn identity(ui: &mut Ui, d: &DeviceView<'_>, preview: bool, dormant: 
     ui.add_space(space::S);
     label(ui, d.name, Role::Title, color::TEXT_PRIMARY.get());
     ui.add_space(space::M);
-    status(
+    let _ = status(
         ui,
         Icon::Component,
         &format!(
@@ -30,15 +30,7 @@ pub(super) fn identity(ui: &mut Ui, d: &DeviceView<'_>, preview: bool, dormant: 
         ),
         color::TEXT_SECONDARY.get(),
     );
-    if let Some(driver) = d.driver {
-        label(
-            ui,
-            s::maturity(driver.maturity),
-            Role::Caption,
-            color::TEXT_TERTIARY.get(),
-        );
-    }
-    status(
+    let connection = status(
         ui,
         if dormant {
             Icon::Caution
@@ -64,13 +56,35 @@ pub(super) fn identity(ui: &mut Ui, d: &DeviceView<'_>, preview: bool, dormant: 
             color::TEXT_SECONDARY.get()
         },
     );
+    if d.details.iter().any(technical_detail) {
+        connection.on_hover_ui(|ui| {
+            for detail in d.details.iter().filter(|d| technical_detail(d)) {
+                let (name, value) = s::detail(detail);
+                spans(
+                    ui,
+                    &[
+                        (name, Role::Caption, color::TEXT_SECONDARY.get()),
+                        (&value, Role::Mono, color::TEXT_PRIMARY.get()),
+                    ],
+                );
+            }
+        });
+    }
     ui.add_space(space::M);
     crate::ui::widgets::battery_status(ui, d.details);
 }
 
-fn status(ui: &mut Ui, icon: Icon, text: &str, ink: eframe::egui::Color32) {
+fn technical_detail(detail: &crate::core::Detail) -> bool {
+    !matches!(
+        detail,
+        crate::core::Detail::Battery(_) | crate::core::Detail::Power(_)
+    )
+}
+
+fn status(ui: &mut Ui, icon: Icon, text: &str, ink: eframe::egui::Color32) -> Response {
     ui.horizontal_top(|ui| {
-        icon.show(ui, size::ICON_SMALL, ink);
-        label(ui, text, Role::Caption, ink);
-    });
+        icon.show(ui, size::ICON_SMALL, ink)
+            .union(ui.add(Label::new(rich(text, Role::Caption, ink)).wrap()))
+    })
+    .inner
 }

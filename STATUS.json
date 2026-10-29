@@ -1,8 +1,109 @@
 {
   "application": "Lusorium Studio",
   "version": "0.3.0",
+  "action_tile_icon_and_alignment": "Capability tile icons increased to 40 px. Wrapped label lines are individually centered below the icon. fmt, clippy, 115 unit tests and 3 admission tests passed; release built and ordinary EXE updated. Visual/input review at 720/1040/1600 px: verification/action-icon-center.",
+  "device_capability_action_tiles": {
+    "behavior": "Lighting, encoder and future device capability entry points use the shared ActionTile widget: equal square tiles, 112-144 px sides, 8 px corners, centered 40 px icon and a 14 px label with each wrapped line centered. Grid columns follow available width with 12 px gaps; additional rows scroll only within the action area.",
+    "design_contract": "docs/DESIGN.md section 5.2; mandatory for current and future device capability entry points.",
+    "validation": "fmt and clippy passed; 115 unit tests and 3 admission tests passed; release built and ordinary EXE updated with matching SHA256. Sixteen review scenes passed at 720/1040/1600 px, including overview, both themes, 520 px height, Lighting/Encoder input and transition/idle checks.",
+    "review": "verification/device-action-tiles",
+    "release_artifact": "target/release/lusorium-studio.exe"
+  },
+  "connection_details_tooltip": {
+    "behavior": "USB identifiers, firmware, release and other technical facts appear on hover over the connection status text or icon. Battery remains visible separately. Removed the standalone details block, compact disclosure and preview-without-writing caption.",
+    "validation": "fmt, clippy, 113 unit tests and 3 admission tests passed; release built. Device layout review passed at 720/1040/1600 px: verification/connection-details-final/complete.json.",
+    "release_artifact": "target/release/lusorium-studio.exe",
+    "delivery": "Updated the ordinary executable after the owner closed the application; SHA256 matches the built artifact."
+  },
+  "experimental_caption_refinement": "Moved the light experimental caption below Back and added an orange theme token (FFA64D dark / 9C4800 light). Contrast checks, fmt, clippy, 113 unit tests and 3 admission tests passed; release built and the ordinary EXE was updated. Three-width visual review: verification/experimental-caption-orange/complete.json.",
+  "workspace_copy_cleanup": {
+    "behavior": "No standing preview, persistence, backup, rollback or read-back banner during normal editing. Experimental status appears once below Back in orange, using 12 px Segoe UI Light, without a badge, icon or background. Only one current connection blocker or failure occupies the message strip; button progress and the confirmed card show routine operation state.",
+    "validation": "fmt and clippy passed; 113 unit tests and 3 admission tests passed. Release build passed using the warm target/panel-review directory; the ordinary executable was updated and its SHA256 matched the built artifact.",
+    "review": "verification/workspace-copy-final",
+    "scenes": 14,
+    "widths": [720, 1040, 1600],
+    "minimum_height": 520,
+    "coverage": "Preview, Select, Apply, errors, native inspector, offline catalog, missing USB, lighting transitions and pointer tracking; reviewed both themes and experimental header placement.",
+    "release_artifact": "target/release/lusorium-studio.exe",
+    "hardware": "UI-only changes; no live device writes performed."
+  },
+  "lighting_selection_correction": {
+    "behavior": "A real pointer click on a preview retains Select and sends no write. Only the last device-confirmed mode hides Select. Select and Apply use the existing checkmark icon and retain smooth fixed-width progress.",
+    "validation": "fmt and clippy passed; 113 unit tests and 3 admission tests passed; 7 pointer-driven review scenes passed at 720/1040/1600 px, including a preview followed by explicit Select.",
+    "review": "verification/lighting-selection-final/complete.json",
+    "release_artifact": "target/release/lusorium-studio.exe",
+    "delivery": "Resolved after the owner closed the application: the ordinary release path now contains the updated, hash-verified executable, including the workspace copy cleanup."
+  },
+  "lighting_followup_2026_10_29": {
+    "owner_observation": "Hardware controls remain inverted while the 3D preview is correct; action buttons blink at the battery interval.",
+    "delivery": "The ordinary target/release executable predated the prior fix; the corrected binary had been built only under target/panel-review/release. Rebuilt target/release/lusorium-studio.exe with the current codec and UI.",
+    "wire_regression": "Breathing id 2: brightness at 0x3C, speed at 0x3D high nibble. Tests independently change each field for ids 2 and 7 and preserve every unrelated byte.",
+    "ui": "Telemetry preserves the painted inspector/cards and accepts one queued Apply. Fixed progress icon slot and spring crossfade prevent button width jumps; only the initiating action owns progress. Select remains visible on highlighted previews and is hidden only on the device-confirmed card. Select and Apply use checkmark icons. Minimum card width includes both action icons.",
+    "validation": {
+      "tests": "113 unit tests and 3 admission tests passed outside the restricted sandbox",
+      "checks": "fmt, clippy -D warnings and cargo build --release passed",
+      "review": "verification/lighting-selection-final/complete.json",
+      "scenes": 7,
+      "widths": [720, 1040, 1600],
+      "minimum_height": 520,
+      "interaction": "Real pointer input independently edits and commits brightness and speed for Breathing to an in-memory device; preview-only, Select, Apply and failure scenes also checked.",
+      "hardware": "No live device writes performed; the updated ordinary release still needs owner comparison."
+    }
+  },
+  "workspace_framing_repair": "Fit the model square to the destination layout before animating its center and side. The previous fit against intermediate animated width/height could grow then shrink despite critical damping. Destination notice wrapping is measured separately from its moving display strip.",
+  "workspace_framing_validation": {
+    "tests": "106 unit tests and 3 admission tests passed; framing regression checks first-step continuity and monotonic center/size across five transitions at three widths",
+    "ui_review": "Lighting, encoder, settings, zoomed-pointer and reversal: 8 scenes at 720/1040/1600 px. Actual submitted model geometry is checked on every frame from 25 to 139 for lighting/encoder; no scale or center reversal. Idle repaint/GPU checks passed.",
+    "report": "verification/framing-destination; final rebuilt artifact also passed lighting, encoder and tile opening at all three widths in verification/framing-final",
+    "checks": "fmt, clippy -D warnings and cargo build --release passed"
+  },
+  "workspace_motion": "Critically damped camera, pointer tracking, framing, island and inspector transitions avoid bounce inside device editors. Encoder framing interpolates rather than changing model size immediately. DEVICE_REVEAL overshoot remains exclusive to list-to-device opening.",
+  "workspace_motion_validation": {
+    "fmt_clippy_tests": "passed; 100 unit tests and 3 admission tests",
+    "review": "Final lighting, encoder, settings and zoomed-pointer scenarios passed at 720/1040/1600 px (7 scenes, 21 renders), including idle repaint/submission checks. Reports: verification/workspace-motion-final.",
+    "extended_review_limit": "studio-connection-settings expects a visible Apply control that is absent; extended review does not fully pass.",
+    "release_artifact": "cargo build --release passed; target/release/lusorium-studio.exe"
+  },
+  "device_workspace_navigation": "Back and Escape unwind inspector, editor, then device list; the island close button returns directly to overview. Backup actions remain in Settings only; the redundant Demonstration button is removed while automatic previews remain available.",
+  "device_workspace_navigation_validation": {
+    "fmt_clippy": "passed",
+    "tests": "100 unit tests and 3 admission tests passed outside the restricted sandbox",
+    "review": "Back, island close and native settings: 4 scenes at 720/1040/1600 px; input and idle checks passed. Reports in verification/navigation.",
+    "release": "Linked executable saved as target/release/lusorium-studio-navigation.exe; Cargo could not replace the existing target/release/lusorium-studio.exe (Windows access denied)."
+  },
   "device_control_direction": "Proprietary project-owned direct protocol adapters for explicitly supported devices and hardware revisions; no external RGB service in the product architecture. Legacy service integration code removal is pending.",
+  "acrylic_repair": "Ordinary packaged startup regression: initialize the HWND redirection surface to zero with a stock black GDI brush after the first presentation; keep the class brush for resize exposure. DWM attributes alone left a white strip beneath transparent navigation. Caption and navigation follow the application theme; GPU output remains zero-readback.",
   "stage": "gpu_workspace_and_outline_key_legends",
+  "wired_lighting_audit_2026_10_29": "Read wired configuration and RGB palette without writes; program 7, speed 4, brightness 1, color slot 6 (white). Owner confirms id 7 is key-triggered. Native continuous previews now run while focused; reactive previews originate at real key events. Device RGB slots retained in editor metadata without turning display reads into color writes. Firmware animation algorithms are not returned by known read commands; exact timing/mode matching remains unverified.",
+  "wired_behavior_validation": {
+    "rust_tests_passed": 88,
+    "fmt_clippy_release": "passed",
+    "read_only_report": "verification/wired-lighting-complete.json",
+    "review_report": "verification/wired-final/complete.json",
+    "native_review_scenes": 8,
+    "review_widths": [
+      720,
+      1040,
+      1600
+    ],
+    "continuous_check": "GPU submissions continue beyond the former 1.6-second demo in active continuous scenes",
+    "reactive_check": "No emission without key events; mode 7 uses transient event origins and propagating rings",
+    "exact_hardware_animation_match": "not established; only mode 7 trigger behavior owner-confirmed"
+  },
+  "lighting_design_repair": "Restored framed native cards with selection borders/checks and motion, hue wheel pinned above brightness/speed, default custom color where supported. Distinct spatial/temporal previews shared by cards and 3D model; finite demonstrations stop at rest. Illustrative firmware behavior, not captured timing.",
+  "lighting_design_validation": {
+    "rust_tests_passed": 87,
+    "fmt_clippy_release": "passed",
+    "review_scenes": 24,
+    "review_widths": [
+      720,
+      1040,
+      1600
+    ],
+    "report": "verification/design-final/complete.json",
+    "effect_validation": "All 19 named programs have distinct sampled spatial/temporal signatures. Rain, ripples, snake and windmill have dedicated rendered review scenes. Idle repaint and GPU checks passed.",
+    "hardware_timing_match": "not measured; previews are illustrative"
+  },
   "radio_discovery_validation": {
     "rust_tests_passed": 86,
     "fmt_clippy_release": "passed",
@@ -10,12 +111,16 @@
     "live_read_only_discovery": "AK820 MAX 3554:FA09 found, 76 percent, battery power, no errors or settings/firmware writes",
     "report": "verification/radio-discovery-fixed.json"
   },
-  "native_lighting_editor": "Wired BY Tech: 18 native effects plus Off, saved per-effect settings, brightness 0..4, supported speed/custom color, scrollable catalog. Explicit Apply only; backup, changed-block write and full read-back. No hardware writes performed for this integration; owner verification pending. Other drivers retain existing solid-color support.",
+  "native_lighting_editor": "Owner authorized explicit manual BY Tech commits for identified tri-mode revision. Card clicks/sliders are draft-only. Select beside Settings and inspector Apply share the backed-up, per-block read-back path; no streaming or automatic retry. Applied checkmark comes from device confirmation, not preview/preferences. Independent ConfigurationBackup recovery remains system-only.",
   "native_lighting_validation": {
     "rust_tests_passed": 83,
     "fmt_clippy_release": "passed",
     "workspace_review_scenes": 20,
-    "workspace_review_widths": [720, 1040, 1600],
+    "workspace_review_widths": [
+      720,
+      1040,
+      1600
+    ],
     "wheel_scroll_and_idle_checks": "passed",
     "report": "verification/lighting-final/complete.json",
     "missing_controls_regression": "Passed via actual offline catalog route and a live device without lighting capability at 720/1040/1600 px. Driver-supplied static previews expose native programs and brightness; Apply disabled with USB/wired-mode hint until writable lighting is present.",
@@ -37,7 +142,7 @@
       "usb_identity_verified": true,
       "verified_on": "2026-10-28",
       "native_driver": "by_tech (experimental: wired lighting and battery; radio battery only)",
-      "lighting_control": "implemented from static analysis of OemDrv.exe V1.0; read path verified by --probe on 2026-10-28 (tri-mode password, valid configuration block); writes not yet verified",
+      "lighting_control": "Quarantined after configuration corruption on 2026-10-29. Original config recovered with exact read-back and owner-confirmed working keys; lighting writes remain blocked.",
       "battery_read": "Standalone reads verified on 2026-10-28: USB 0x87/2 returned 64 10 then 5C 10 (92 percent); radio 0x4A returned 4E 01 then 5A 10 (90 percent with cable). USB is not fixed at 100; cable-disconnected radio later returned 4D 01 (77 percent). Status 01 correlates with cable absent and 10 with cable present; active charging vs full external power unresolved. Percentage varies with connection/power state; accuracy unconfirmed; integrated into driver/UI with adaptive live telemetry",
       "protocol_source": "docs/DEVICES.md, section 1.1.1"
     },
@@ -55,9 +160,9 @@
     "sonix_aa55": "stable",
     "sonix_feature": "experimental, off by default",
     "hid_lamparray": "stable",
-    "by_tech": "experimental, off by default"
+    "by_tech": "experimental; USB/radio battery, system+palette capture, system-only recovery; owner-authorized explicit lighting commits with backup and per-block read-back"
   },
-  "settings_writes": "explicit Apply button only; sonix_aa55, sonix_feature and by_tech persist lighting settings",
+  "settings_writes": "Persistent lighting never enters the edit queue. Explicit Apply for supported other drivers; BY Tech ordinary writes blocked. Configuration recovery requires explicit restore confirmation, pre-write backup and read-back.",
   "device_page_transition": "Shared tile-to-page surface with continuous list dimming and label handoff; separate reversible model spring with about 0.6% opening overshoot; responsive identity header; reduced-motion crossfade",
   "battery_display": "Per-device battery deadlines and independent backoff; saved Automatic/Responsive/Eco presets; Automatic 5s open card, 60s other visible devices, 300s background on battery, 60s background charging; one telemetry job in flight; retained sample/timestamp for future tray; hidden frames skip UI construction; native tray icons not yet implemented",
   "device_tiles": "square tiles with a 3D model (docs/DESIGN.md 8.1); GPU-rendered only when pose, lighting or size changes; native textures sampled directly without CPU readback",
@@ -92,7 +197,7 @@
     "backend": "wgpu Direct3D 12; MemoryHints::MemoryUsage",
     "adapter": "NVIDIA GeForce RTX 3080",
     "scope": "one hardware-free native preview; default window and synthetic keyboard; no discovery or telemetry",
-    "cpu_ms_per_5s": 0.0,
+    "cpu_ms_per_5s": 0,
     "working_set_mb": 182.83,
     "private_memory_mb": 257.21,
     "mesh_uploads": 1,
@@ -100,5 +205,206 @@
     "model_renders_first_idle_and_exit": 51,
     "retained_working_views": 0,
     "earlier_120_mb_guideline_met": false
+  },
+  "owner_lighting_corrections_2026_10_29": {
+    "preview": "Owner-described patterns; approximately fivefold slowdown for accelerated modes; wheel and blossom timing retained",
+    "preferences": "Local per-model mode/color/brightness/speed; device colors are fallback metadata only",
+    "live_hardware": "Historical behavior, superseded: automatic persistent edits are disabled; native commits now require Select or Apply.",
+    "validation": {
+      "tests": 90,
+      "fmt": "passed",
+      "clippy": "passed",
+      "release": "built",
+      "review": "verification/owner-lighting-final/complete.json",
+      "scenes": 8,
+      "widths": [
+        720,
+        1040,
+        1600
+      ],
+      "hardware_writes": "none",
+      "timing": "approximate; owner comparison pending"
+    }
+  },
+  "live_lighting_editor_2026_10_29": {
+    "behavior": "Native mode/color/brightness/speed edits apply without Apply; queue survives navigation, coalesces while busy, cancels on errors and restore",
+    "speed_zero": "Positive slow preview rate; firmware value 0 is transmitted unchanged",
+    "slider_handles": "Circle for all themed sliders",
+    "validation": {
+      "tests": 94,
+      "hardware": "Not exercised; synthetic devices only",
+      "release": "verification/lusorium-studio-live.exe; standard target EXE replacement blocked by Windows",
+      "review": "verification/live-lighting-review/complete.json"
+    }
+  },
+  "input_loss_incident_2026_10_29": {
+    "hardware": "Owner confirmed keyboard key input works again after original configuration recovery",
+    "diagnosis": "Read-only USB confirms identity; invalid 128-byte configuration, effect FF, 45 bytes changed versus latest backup",
+    "containment": "All BY Tech writes and restore rejected before I/O; persistent capabilities excluded from automatic lighting queue",
+    "recovery": "Completed after direct owner Yes button press: one original 128-byte config write 0x04, exact immediate read-back; owner confirmed keys work. No palette, reset, firmware or bootloader writes. Original backups retained.",
+    "validation": "Historical containment validation: 89 unit tests and 3 admission tests passed; recovery fixed-packet test and clippy passed; release built. Recovery physically confirmed by owner; root cause unresolved; normal writes remain quarantined. Superseded for explicit manual Apply by the owner authorization in explicit_lighting_commits."
+  },
+  "reusable_backups": {
+    "standalone": "Separate compact BackupApp; lusorium-backup-portable.zip in project root contains only EXE and Russian manual; Studio Shell/App/viewer are not constructed",
+    "main_ui": "Settings > Backups is the first card; Save and Restore always visible, device selection and read-only discovery isolated from normal experimental-driver preference. Device-page toolbar is retained.",
+    "format": "Bounded GZip JSON .lsbackup, payload SHA256; historical JSON import supported",
+    "coverage": "BY Tech USB: full known 128-byte system block and 512-byte palette; AA55: lighting block only",
+    "recovery": "BY Tech exact tri-mode release/descriptor: system block only, one 0x04 write, 500 ms then exact read-back; AA55 uses its own identity, backup and verification path",
+    "unsupported": "Universal full memory, macros, key maps, screen, calibration and firmware are not included; radio settings unavailable",
+    "binding": "Original hashed endpoint and protocol identity; foreign archives rejected",
+    "original_archive": "device-backups/original-before-incident.lsbackup; source equality and payload SHA256 verified offline",
+    "hardware_validation": "Existing single-block recovery owner-confirmed; new general UI tested with synthetic devices only; no new hardware writes",
+    "manual": "BACKUP-README.ru.md",
+    "incident": "docs/INPUT-LOSS-2026-10-29.md",
+    "unknown_devices": "Unknown HID keyboard interfaces are passively listed, grouped by container ID, receive no protocol requests and expose no backup/recovery operations"
+  },
+  "developer_logging": {
+    "setting": "Developer mode > Enable logging for all drivers; persistent, default off",
+    "scope": "Both GUI applications; driver command codes, all HID and loopback TCP IO metadata, actions/operations/workers, sanitized errors and Rust panic source location",
+    "privacy": "No payload contents, keys, serial numbers, device/archive paths, panic text or stack traces",
+    "retention": "2 MiB roll; newest four JSONL files, deletion best effort if OS locks old file",
+    "disabled": "Atomic fast path, no thread, timer or idle writes; disabling closes the file",
+    "folder": "Identity data directory / logs; explicit Open logs folder action",
+    "limitations": "OS kill/power loss cannot guarantee a final crash marker; metadata traces are not packet captures"
+  },
+  "backup_and_logging_validation": {
+    "unit_tests": 98,
+    "admission_tests": 3,
+    "fmt": "passed",
+    "clippy": "passed with -D warnings",
+    "release": "both binaries built",
+    "backup_review": "verification/backup-review-final/complete.json",
+    "backup_scenes": 3,
+    "logging_review": "verification/logging-review/complete.json",
+    "logging_scenes": 1,
+    "widths": [
+      720,
+      1040,
+      1600
+    ],
+    "backup_idle": "No model renders or repaint at rest; scratch views released",
+    "hardware_writes": "none during feature implementation"
+  },
+  "backup_ui_correction": {
+    "standalone_app": "Own 640x460 window, no Studio navigation/3D/editors/telemetry scheduler",
+    "package": "lusorium-backup-portable.zip",
+    "package_contains": [
+      "lusorium-backup.exe",
+      "README.ru.txt"
+    ],
+    "package_binary_hash": "verified against final release build",
+    "main_settings": "First card, visible actions with and without connected keyboard",
+    "scope": "Partial known blocks only; universal full configuration backup remains unsupported",
+    "tests": 102,
+    "clippy": "passed",
+    "fmt": "passed",
+    "release": "both built",
+    "settings_review": "verification/settings-backups-final/complete.json",
+    "settings_widths": [
+      720,
+      1040,
+      1600
+    ],
+    "utility_review": "verification/backup-tool-simple-final/complete.json",
+    "utility_widths": [
+      480,
+      640,
+      800
+    ],
+    "hardware_writes": "none"
+  },
+  "lighting_panel_layout": "Fixed inspector without scrolling; percentage saturation changes the complete hue wheel, no White shortcut. Compact accent-outlined dark-gray slider thumbs. Connection, preview and hardware messages are measured below the model above the island.",
+  "lighting_panel_validation": {
+    "checks": "fmt and clippy -D warnings passed; 100 unit tests and 3 admission tests passed outside the restricted sandbox; release built in target/panel-review",
+    "review": "verification/panel-verified/complete.json",
+    "additional_themes": "verification/panel-final-light/complete.json",
+    "widths": [
+      720,
+      1040,
+      1600
+    ],
+    "minimum_height": 520,
+    "notes": "Offline synthetic review only; no device writes. Native Breathing scenes intentionally animate while focused; static scenes stop rendering at rest."
+  },
+  "explicit_lighting_commits": {
+    "hardware_verification": "Owner reports the prior bug fixed and requests manual testing; this implementation has not been physically exercised by the agent.",
+    "driver": "BY Tech password/release 03000000015e-0100; fresh reads, original-state backup, palette read-back before configuration, 500 ms settle per changed block, no retry",
+    "ui": "Preview outline and device-confirmed checkmark are independent; offline catalog has no applied checkmark",
+    "validation": {
+      "tests": "107 unit tests and 3 admission tests passed outside the restricted sandbox",
+      "fmt_clippy_release": "passed",
+      "commit_review": "verification/explicit-commit-final/complete.json",
+      "inspector_review": "verification/explicit-inspector-final/complete.json",
+      "scenes": 8,
+      "widths": [
+        720,
+        1040,
+        1600
+      ],
+      "minimum_height": 520,
+      "checks": "Preview sends no writes; Select and Apply confirm the requested mode on an in-memory device; failed commit preserves prior mode. UI screenshots inspect separate outline/checkmark and visible actions. Driver tests cover per-block verification, backup failures, identity changes, config-only updates and cross-block corruption without retry."
+    }
+  },
+  "lighting_field_and_ui_correction": {
+    "owner_evidence": "Owner confirms Brightness changed speed; vendor static analysis independently confirms inverted field interpretation.",
+    "wire_layout": "At 0x38 + 2 * hardware id: brightness byte, then speed high nibble and color slot low nibble. All parsing, metadata, writes and passive reports corrected.",
+    "static_evidence": "OemDrv.exe SpeedHW xref 0x410CE6 -> table +0x2E50; LightHW xref 0x410E00 -> +0x2E70; writer 0x48CE9C..0x48CEC4.",
+    "ui": "Hide Select on applied card; stable control IDs; telemetry does not disable Apply; one explicit click waits for device release without streaming or retries.",
+    "color": "Direct RGB-channel HSV; cyan saturation 50 percent encodes 128/255/255 instead of gamma-lifted 188/255/255. No demonstrated palette quantization restriction; physical output calibration unmeasured.",
+    "validation": {
+      "tests": "111 unit tests and 3 admission tests passed outside the restricted sandbox",
+      "checks": "fmt, clippy -D warnings and all release binaries passed",
+      "commit_review": "verification/lighting-correction-commit/complete.json",
+      "inspector_review": "verification/lighting-correction-inspector/complete.json",
+      "review_scenes": 8,
+      "widths": [
+        720,
+        1040,
+        1600
+      ],
+      "minimum_height": 520,
+      "limits": "Hardware field inversion is owner-confirmed and independently supported by vendor static analysis; corrected build and LED optical matching await owner comparison. No live device writes were performed during these checks."
+    }
+  },
+  "lighting_independent_research": {
+    "report": "docs/LIGHTING-PROTOCOL-COLOR-AUDIT-2026-10-29.md",
+    "method": "Fresh published package download, byte-identical archive comparison, static extraction, stdlib PE audit with 19 anchors, independent public protocol references, existing anonymized snapshot inspection; no vendor execution or HID IO.",
+    "field_order": "Confirmed: brightness first, speed high nibble in second byte. Owner observation agrees.",
+    "colors": "Arbitrary intermediate RGB storage observed in 30 snapshots; firmware PWM depth and optical accuracy remain unknown. Numeric gamma difference is confirmed, not a measured device calibration.",
+    "checks": "19 PE anchors passed for both Wired and Thr profiles. Focused field-independence and saturation tests passed.",
+    "application_changes": "none during this research"
+  },
+  "workspace_lighting_depth": {
+    "report": "docs/LIGHTING-PREVIEW-2026-10-29.md",
+    "appearance": "Opened-device studio rig with reduced fill, deeper contact shading, model-edge vignette and a soft stage shadow. Luminous sockets/legends carry stronger HDR emission, local spill and symmetric dense Gaussian bloom with a 4x4 prefilter; opaque plastic keeps its albedo.",
+    "reactive": "Flash and Ripples retain a bright crest and an exponential wake in model space. Linear-radiance persistence avoids gamma-crushed tails; key events expire within two seconds, without frame-history textures.",
+    "hardware": "No hardware IO or protocol changes; all review devices and key events are synthetic.",
+    "validation": {
+      "fmt": "passed",
+      "clippy": "all targets passed with -D warnings",
+      "unit_tests": 115,
+      "admission_tests": 3,
+      "test_environment": "Full suite passed outside the sandbox; sandbox restrictions block legacy-directory renames and local TCP fixtures.",
+      "release": "both binaries built",
+      "review_root": "verification/lighting-depth-accepted",
+      "scenes": 21,
+      "final_states": 63,
+      "widths": [720, 1040, 1600],
+      "themes": ["dark", "light"],
+      "minimum_height": 520,
+      "coverage": "Overview, Solid, Flash/wake, Ripples/wake, lighting/encoder/settings, zoomed pointer tracking, opening/reversal and finite-effect idle counters.",
+      "idle": "Static and expired-reactive scenes stop repaint/submissions and release temporary work targets; focused native continuous effects intentionally remain animated.",
+      "offline_active_frame_example_ms": {
+        "ripples_wide_before_mean": 2.205,
+        "ripples_wide_after_mean": 3.102,
+        "ripples_wide_after_max": 4.751,
+        "limit": "Includes synchronous GPU image readback for offline screenshots; excludes presentation and does not establish native FPS. Samples are not a controlled GPU benchmark."
+      },
+      "native_metrics": "verification/lighting-depth-native-idle.json",
+      "native_process_sample": "verification/lighting-depth-native-idle-process.json",
+      "native_sample_limits": "RTX 3080, final release. Pointer movement resumed after first idle (49 -> 1175 model renders), so the process sample is active interaction, not idle CPU. UI update mean/max 0.267/10.530 ms excludes GPU execution/presentation. Zero frame readbacks and zero retained working views verified. Resting submission/repaint behavior is established separately by the offline scenes.",
+      "before": "verification/lighting-depth-before/studio-native-ripples-wide-65.png",
+      "after": "verification/lighting-depth-accepted/studio-native-ripples/studio-native-ripples-wide-65.png"
+    }
   }
 }

@@ -62,6 +62,32 @@ fn endpoint() -> Endpoint {
 }
 
 #[test]
+fn manual_backup_is_read_only_and_recovery_preserves_current_state_first() {
+    let fake = FakeBus::new(vec![endpoint()], keyboard());
+    let bus: Arc<dyn Bus> = fake.clone();
+    let mut device = Aa55Driver.discover(&bus).devices.remove(0);
+    let snapshot = device.configuration_backup().unwrap().capture().unwrap();
+    assert!(
+        fake.log()
+            .iter()
+            .all(|p| !matches!(p, Packet::Output(p) if p[2] == SET_LED_EFFECT))
+    );
+    assert!(fake.backups().is_empty());
+    let restored = device
+        .configuration_backup()
+        .unwrap()
+        .recover(&snapshot)
+        .unwrap();
+    assert_eq!(restored, Outcome::Restored);
+    let first_write = fake
+        .log()
+        .iter()
+        .position(|p| matches!(p, Packet::Output(p) if p[2] == SET_LED_EFFECT))
+        .unwrap();
+    assert!(fake.packets_before_backup().unwrap() <= first_write);
+}
+
+#[test]
 fn allows_only_stock_lighting_commands_and_preserves_unknown_bytes() {
     let p = codec::packet(GET_INFO, None).unwrap();
     assert_eq!(&p[..9], &[0, 0xaa, 0x10, 48, 0, 0, 0, 1, 0]);
