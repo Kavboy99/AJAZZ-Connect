@@ -151,6 +151,7 @@ pub(super) fn show(
     );
     let target = device_reveal::stage(ui.ctx(), stage);
     stage::draw(ui, id, &page, target, destination, state);
+    crate::ui::viewer::appearance::persist(ui.ctx(), model.settings);
     if panel > 0.005 {
         let panel_rect = if wide {
             Rect::from_min_max(

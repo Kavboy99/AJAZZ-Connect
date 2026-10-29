@@ -11,6 +11,14 @@ const MODELS: &[(&str, &[u8])] = &[
         "ak820-max",
         include_bytes!("../../../assets/models/ak820-max.glb"),
     ),
+    (
+        "ak820-purple",
+        include_bytes!("../../../assets/models/ak820-max.glb"),
+    ),
+    (
+        "ak820-white",
+        include_bytes!("../../../assets/models/ak820-max.glb"),
+    ),
     ("aj159", include_bytes!("../../../assets/models/aj159.glb")),
 ];
 

@@ -32,6 +32,7 @@ pub struct Settings {
     pub lighting: std::collections::BTreeMap<String, Vec<crate::core::LightingSettings>>,
     pub lighting_selected: std::collections::BTreeMap<String, u8>,
     pub theme: Theme,
+    pub orange_keycaps: bool,
     pub developer_mode: bool,
     pub logging_enabled: bool,
     pub show_all_devices: bool,

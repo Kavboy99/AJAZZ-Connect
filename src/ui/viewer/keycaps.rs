@@ -10,6 +10,7 @@ const CELL: usize = 192;
 const COLUMNS: usize = SIDE / CELL;
 
 pub(super) fn prepare(scene: &mut Scene, visual: &str) {
+    super::finish::housing(scene, visual);
     let Some(binding) = binding(Some(visual)) else {
         return;
     };
@@ -85,10 +86,11 @@ pub(super) fn prepare(scene: &mut Scene, visual: &str) {
                     }
                 }
             }
-            let color = samples.map(|mut values| {
+            let sampled = samples.map(|mut values| {
                 values.sort_unstable();
                 values[values.len() / 2]
             });
+            let color = super::finish::plastic(visual, label, sampled);
             for y in origin[1]..origin[1] + CELL {
                 for x in origin[0]..origin[0] + CELL {
                     let at = (y * SIDE + x) * 4;
@@ -96,6 +98,9 @@ pub(super) fn prepare(scene: &mut Scene, visual: &str) {
                 }
             }
             let aspect = ((hi[0] - lo[0]) / (hi[1] - lo[1]).max(0.001)).max(1.0);
+            if visual == "ak820-white" {
+                super::finish::contours(&mut atlas, origin, CELL, SIDE, index);
+            }
             lettering(&mut atlas, &font, label, origin, aspect, color);
             for v in batch.vertices.iter_mut().filter(|v| v.part == part) {
                 v.uv = std::array::from_fn(|i| {
@@ -163,7 +168,11 @@ fn lettering(
     let scaled = font.as_scaled(scale);
     let width = width * squeeze;
     let mut cursor = 0.0;
-    let ink: [u8; 3] = if u16::from(color[0]) + u16::from(color[1]) + u16::from(color[2]) > 500 {
+    let ink: [u8; 3] = if color == [246, 245, 242] {
+        [139, 113, 172]
+    } else if color == [174, 149, 202] || color == [184, 215, 234] {
+        [250, 249, 247]
+    } else if u16::from(color[0]) + u16::from(color[1]) + u16::from(color[2]) > 500 {
         [49, 51, 45]
     } else {
         [232, 232, 214]

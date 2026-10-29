@@ -5,6 +5,39 @@ use crate::app::Theme;
 use crate::ui::Route;
 pub(super) const SCENES: &[Scene] = &[
     Scene {
+        name: "finish-purple",
+        theme: Theme::Dark,
+        height: 900.0,
+        pointer: None,
+        setup: |app| {
+            app.session_mut()
+                .adopt(review_state::finish_devices("ak820-purple"));
+            app.open(Route::Device(0));
+        },
+    },
+    Scene {
+        name: "finish-white",
+        theme: Theme::Dark,
+        height: 900.0,
+        pointer: None,
+        setup: |app| {
+            app.session_mut()
+                .adopt(review_state::finish_devices("ak820-white"));
+            app.open(Route::Device(0));
+        },
+    },
+    Scene {
+        name: "finish-orange",
+        theme: Theme::Dark,
+        height: 900.0,
+        pointer: None,
+        setup: |app| {
+            app.session_mut()
+                .adopt(review_state::finish_devices("ak820-max"));
+            app.open(Route::Device(0));
+        },
+    },
+    Scene {
         name: "settings-backups-empty",
         theme: Theme::Dark,
         height: 840.0,

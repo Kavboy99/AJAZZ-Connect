@@ -134,15 +134,21 @@ pub(super) fn backup_devices() -> Discovered {
 }
 
 pub(super) fn native_devices_for(current: u8) -> Discovered {
-    native_device(current, false)
+    native_device(current, false, None)
 }
 pub(super) fn commit_devices(confirm_writes: bool) -> Discovered {
-    native_device(0, confirm_writes)
+    native_device(0, confirm_writes, None)
 }
-fn native_device(current: u8, confirm_writes: bool) -> Discovered {
+pub(super) fn finish_devices(visual: &str) -> Discovered {
+    native_device(0, false, Some(visual))
+}
+fn native_device(current: u8, confirm_writes: bool, visual: Option<&str>) -> Discovered {
     use crate::core::{LightingEditor, LightingEffect as E, LightingPreset, LightingSettings};
     let mut found = devices();
-    let descriptor = found.devices[0].descriptor().clone();
+    let mut descriptor = found.devices[0].descriptor().clone();
+    if let Some(visual) = visual {
+        descriptor.visual = Some(visual.into());
+    }
     let presets = [
         E::Solid,
         E::Breathing,
@@ -253,7 +259,7 @@ pub fn devices() -> Discovered {
                     Detail::Power(crate::core::PowerSource::External),
                 ],
                 persistent,
-                Some("ak820-max"),
+                Some("ak820-purple"),
             ),
             device(
                 DeviceKind::Mouse,
@@ -295,7 +301,7 @@ pub fn devices() -> Discovered {
                 vid: 0x258a,
                 pid: 0x010c,
             }],
-            visual: Some("ak820-max".into()),
+            visual: Some("ak820-purple".into()),
         }],
         admitted: Vec::new(),
         notes: vec![DriverNote {
