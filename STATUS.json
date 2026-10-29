@@ -1,6 +1,14 @@
 {
   "application": "Lusorium Studio",
   "version": "0.3.0",
+  "keyboard_cosmetic_finishes": {
+    "behavior": "BY Tech defaults to lavender and ivory with pale blue Escape, Enter and Space. Orange/lavender swatches below the overview persist a cosmetic preference. SONiX uses white keycaps with recreated flowing contour artwork. Keyboards without a visual use the orange mockup; other kinds retain their icons.",
+    "validation": "fmt and clippy passed; 116 unit tests and 3 admission tests passed. Release built at target/panel-review/release/lusorium-studio.exe. Overview finishes, lighting editor and native inspectors rendered at 720, 1040 and 1600 px; review input/idle checks passed.",
+    "review": ["verification/keyboard-finishes", "verification/keyboard-finishes-editor", "verification/keyboard-finishes-inspector"],
+    "delivery": "The normal target/release executable was in use and could not be replaced; the separate release artifact contains the changes.",
+    "hardware": "Cosmetic only; no live device writes.",
+    "artwork": "White flowing line artwork is recreated procedurally from the supplied visual reference, not an exact copy of the manufacturer's print."
+  },
   "action_tile_icon_and_alignment": "Capability tile icons increased to 40 px. Wrapped label lines are individually centered below the icon. fmt, clippy, 115 unit tests and 3 admission tests passed; release built and ordinary EXE updated. Visual/input review at 720/1040/1600 px: verification/action-icon-center.",
   "device_capability_action_tiles": {
     "behavior": "Lighting, encoder and future device capability entry points use the shared ActionTile widget: equal square tiles, 112-144 px sides, 8 px corners, centered 40 px icon and a 14 px label with each wrapped line centered. Grid columns follow available width with 12 px gaps; additional rows scroll only within the action area.",
@@ -408,3 +416,4 @@
     }
   }
 }
+

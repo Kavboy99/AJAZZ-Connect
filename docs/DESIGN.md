@@ -409,7 +409,7 @@ device and every kind (keyboards, mice, lighting, fans, ...); only the model ins
   shrinks and fades as the model rises. The card fill flows to `surface.card.hover` as on any card.
 - **Motion.** Lift and glow use `spring.standard`, the turn uses `spring.tilt` (light inertia). All
   of it is interruptible and returns to rest when the pointer leaves; nothing moves on its own.
-- **No model.** A device without a model shows its kind icon (64 px, `text.secondary`) on the same
+- **No model.** A keyboard without its own model uses the orange generic keyboard mockup. Other device kinds show their kind icon (64 px, `text.secondary`) on the same
   stage with the same shadow, glow, lift and a small parallax shift instead of the turn.
 - **Where models come from.** A model is data: a profile names it (`visual = "..."`,
   `docs/ADDING-A-DRIVER.md`) and the file lives in `assets/models/`. The interface never picks a model
@@ -684,3 +684,18 @@ Lighting sliders use compact accent-outlined circular handles with dark-gray cen
 ### Dedicated backup utility
 
 At the owner's request, the separate backup executable uses a minimal, independent window with a device selection control, archive actions and status. It does not include Studio navigation, 3D previews, lighting or encoder editors. The main application's discovered-device inventory retains the square 3D tile standard; the Settings backup selection control is an operation target selector, not a replacement inventory. Its first Settings card always exposes Save and Restore affordances, disabled with a clear reason when unavailable. Partial snapshot coverage must stay explicit.
+
+### 8.4 Keyboard cosmetic finishes
+
+BY Tech profiles use the light purple finish by default: ivory housing and alphanumeric keys,
+lavender modifiers, navigation and F5-F8, with pale blue Escape, Enter and Space. The reference
+photographs supplied by the owner define the color grouping. Two small circular swatches,
+orange then light purple, sit below the keyboard in its overview. Selection is saved locally
+and applies consistently to tiles and the workspace; it changes appearance only, never HID state.
+Selection rings animate using the shared springs.
+
+SONiX profiles use an ivory-white finish with thin dark flowing contour lines printed on the
+keycaps and readable dark legends. The print belongs to the plastic atlas, not the emission mask.
+The orange keyboard is also the generic visual mockup for future keyboards lacking a model;
+it does not establish their geometry, protocol, capabilities or hardware compatibility.
+Non-keyboard devices without models retain their kind icon. All finishes retain section 8.3.

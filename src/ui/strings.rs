@@ -330,3 +330,8 @@ pub const BACKUP_PANEL_LEAD: &str = "Выберите подключённое �
 pub const BACKUP_REFRESH: &str = "Найти устройства";
 pub const BACKUP_SELECT: &str = "Выберите устройство";
 pub const BACKUP_EMPTY: &str = "Подключите устройство по USB и нажмите «Найти устройства». Неизвестные протоколы доступны только для просмотра.";
+
+// Cosmetic model finishes.
+
+pub const FINISH_ORANGE: &str = "Оранжевая";
+pub const FINISH_PURPLE: &str = "Светло-фиолетовая";

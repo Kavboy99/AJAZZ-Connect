@@ -107,6 +107,7 @@ pub fn tile_stage(rect: Rect) -> Rect {
 
 /// Shared interactive stage for the tile and the expanded device page.
 pub fn device_stage(ui: &mut Ui, id: Id, stage: Rect, visual: Option<&str>, icon: Icon) {
+    let visual = viewer::appearance::fallback(visual, icon == Icon::Keyboard);
     let side = stage.width().min(stage.height() + FOOTER);
     let ctx = ui.ctx().clone();
     let hovered = ui.rect_contains_pointer(stage);

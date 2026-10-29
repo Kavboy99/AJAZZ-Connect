@@ -37,6 +37,7 @@ fn blend_target(theme: Theme) -> f32 {
 
 impl App {
     pub fn new(ctx: &Context, backdrop: bool, settings: Settings) -> Self {
+        super::viewer::appearance::initialize(ctx, &settings);
         mode::set_blend(blend_target(settings.theme));
         theme::fonts::install(ctx);
         theme::style::apply(ctx);

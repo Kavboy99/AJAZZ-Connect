@@ -66,6 +66,13 @@ pub struct Binding {
 }
 
 pub fn binding(visual: Option<&str>) -> Option<&'static Binding> {
+    let visual = visual.map(|v| {
+        if matches!(v, "ak820-purple" | "ak820-white") {
+            "ak820-max"
+        } else {
+            v
+        }
+    });
     static BINDINGS: OnceLock<Option<Stages>> = OnceLock::new();
     BINDINGS
         .get_or_init(|| toml::from_str(include_str!("../../../assets/models/stages.toml")).ok())

@@ -2,8 +2,10 @@
 //! rasterizer into a texture only when its pose or size changes, at full resolution with
 //! consistent antialiasing. An idle tile costs one textured rectangle and no computation.
 
+pub mod appearance;
 mod catalog;
 pub(crate) mod effect_speed;
+mod finish;
 mod glb;
 mod gltf;
 pub(crate) mod gpu;
@@ -97,6 +99,8 @@ fn show_inner(
     preview: Option<&Preview>,
 ) -> Shown {
     let ctx = ui.ctx();
+    let resolved = appearance::selected(ctx, visual);
+    let visual = resolved;
     let scene = match catalog::model(ctx, visual) {
         Model::Ready(scene) => scene,
         Model::Loading => return Shown::Loading,
@@ -124,6 +128,7 @@ fn show_inner(
         }
         return Shown::Missing;
     }
+    let id = id.with(visual);
     let view = ctx.data(|d| d.get_temp::<View>(id));
     let texture = match view {
         Some(view) if view.key == key => view.texture,

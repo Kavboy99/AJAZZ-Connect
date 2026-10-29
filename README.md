@@ -178,3 +178,5 @@ Backup UI update: use Settings > Backups, the first card, then Find devices. Thi
 Lighting correction: Brightness and Speed now use the owner-confirmed BY Tech field order; the current program card omits Select. Background battery reads no longer flash Apply, and an explicit click waits for telemetry to finish. Saturation uses direct RGB-channel HSV without extra gamma whitening; actual LED color response still requires owner comparison.
 
 Device capability actions use medium square tiles with rounded corners, centered icons and labels, laid out in a responsive grid. Lighting, encoder and future actions share the same component; the pattern is defined in docs/DESIGN.md section 5.2.
+
+Keyboard visuals: BY Tech defaults to lavender with pale blue accents, with orange/lavender cosmetic swatches below the overview model. SONiX uses white contour-print keycaps. Keyboards without a model use the orange generic mockup. These choices do not send device commands.

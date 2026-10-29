@@ -12,6 +12,10 @@ pub(super) fn draw(
     destination: Rect,
     state: &mut State,
 ) {
+    let visual = viewer::appearance::fallback(
+        page.view.visual,
+        page.view.kind == crate::core::DeviceKind::Keyboard,
+    );
     let encoder = state.mode == Mode::Encoder;
     let editing = state.mode != Mode::Overview;
     let toward = ui
@@ -55,7 +59,7 @@ pub(super) fn draw(
             1.0
         },
     );
-    let focus = viewer::binding(page.view.visual).map_or([0.0; 3], |b| b.encoder_focus());
+    let focus = viewer::binding(visual).map_or([0.0; 3], |b| b.encoder_focus());
     let focus = std::array::from_fn(|i| {
         animate(
             ["focus-x", "focus-y", "focus-z"][i],
@@ -89,7 +93,7 @@ pub(super) fn draw(
     };
     let preview = state.preview(ui, id);
     // A keyboard is wide: allow its transparent square to extend past the stage vertically.
-    let aspect = viewer::binding(page.view.visual).map_or(1.0, |b| b.stage_aspect());
+    let aspect = viewer::binding(visual).map_or(1.0, |b| b.stage_aspect());
     let square = super::framing::animate(ui.ctx(), id, destination, aspect, encoder);
     let revealed = device_reveal::stage(ui.ctx(), square);
     // Tile stages reserve a footer; their model square still spans the full tile width.
@@ -107,7 +111,7 @@ pub(super) fn draw(
             .get()
             .gamma_multiply(device_stage::SHADOW_ALPHA * pose.studio),
     );
-    let shown = page.view.visual.map_or(viewer::Shown::Missing, |visual| {
+    let shown = visual.map_or(viewer::Shown::Missing, |visual| {
         viewer::show_preview(
             &model_ui,
             device_reveal::tile_id(page.route).with("model"),
@@ -123,6 +127,16 @@ pub(super) fn draw(
             Rect::from_center_size(stage.center(), Vec2::splat(size::DEVICE_HERO_HEIGHT * 0.3)),
             color::TEXT_SECONDARY.get(),
         );
+    }
+    if !editing && page.view.visual == Some("ak820-purple") {
+        let footer = Rect::from_min_max(
+            stage.min,
+            pos2(
+                stage.max.x,
+                (square.center().y + square.width() * 0.30).min(stage.bottom()),
+            ),
+        );
+        viewer::appearance::swatches(ui, footer);
     }
     if editing {
         let hint = if encoder {
