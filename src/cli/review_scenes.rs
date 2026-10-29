@@ -5,6 +5,40 @@ use crate::app::Theme;
 use crate::ui::Route;
 pub(super) const SCENES: &[Scene] = &[
     Scene {
+        name: "settings-backups-empty",
+        theme: Theme::Dark,
+        height: 840.0,
+        pointer: None,
+        setup: |app| app.open(Route::Settings),
+    },
+    Scene {
+        name: "settings-backups",
+        theme: Theme::Dark,
+        height: 840.0,
+        pointer: None,
+        setup: |app| {
+            app.preview_backups(review_state::backup_devices());
+            app.open(Route::Settings);
+        },
+    },
+    Scene {
+        name: "settings-logging",
+        theme: Theme::Dark,
+        height: 840.0,
+        pointer: None,
+        setup: |app| app.open(Route::Settings),
+    },
+    Scene {
+        name: "backup-main",
+        theme: Theme::Dark,
+        height: 840.0,
+        pointer: None,
+        setup: |app| {
+            app.session_mut().adopt(review_state::native_devices());
+            app.open(Route::Device(0));
+        },
+    },
+    Scene {
         name: "catalog-placeholder",
         theme: Theme::Dark,
         height: 900.0,

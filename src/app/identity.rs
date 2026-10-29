@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 
 pub const PRODUCT_NAME: &str = "Lusorium Studio";
 
+pub fn backup_title() -> String {
+    format!("{PRODUCT_NAME} · Backup")
+}
+
 /// How the application introduces itself to local services such as the OpenRGB SDK server.
 pub const CLIENT_NAME: &str = PRODUCT_NAME;
 

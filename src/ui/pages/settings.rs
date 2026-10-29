@@ -11,11 +11,33 @@ use eframe::egui::Ui;
 
 #[derive(Default)]
 pub struct State {
+    backups: Option<crate::app::backup_session::BackupSession>,
     save_failed: bool,
+    logging_failed: bool,
+}
+
+impl State {
+    pub(crate) fn preview_backups(&mut self, found: crate::app::events::Discovered) {
+        let mut session =
+            crate::app::backup_session::BackupSession::new(std::sync::Arc::new(|| {}));
+        session.adopt_preview(found);
+        self.backups = Some(session);
+    }
 }
 
 pub fn show(ui: &mut Ui, model: &mut Model<'_>, state: &mut State) -> Navigate {
     header(ui, s::SETTINGS_TITLE, None, |_| {});
+    card(ui, |ui| {
+        section_title(ui, Icon::Save, s::BACKUP_TITLE);
+        let controller = state.backups.get_or_insert_with(|| {
+            let wake = ui.ctx().clone();
+            crate::app::backup_session::BackupSession::new(std::sync::Arc::new(move || {
+                wake.request_repaint()
+            }))
+        });
+        crate::ui::backup_panel::show(ui, controller);
+    });
+    gap(ui);
     card(ui, |ui| {
         section_title(ui, Icon::Battery, s::SETTINGS_BATTERY);
         use crate::app::battery::BatteryMode;
@@ -67,6 +89,36 @@ pub fn show(ui: &mut Ui, model: &mut Model<'_>, state: &mut State) -> Navigate {
             state.save_failed = model.settings.save().is_err();
         }
         hint(ui, s::SETTINGS_DEVELOPER_HINT);
+        if model.settings.developer_mode {
+            if switch(ui, &mut model.settings.logging_enabled, s::SETTINGS_LOGGING).changed() {
+                state.logging_failed = !model.settings.ephemeral
+                    && crate::diagnostics::logging::configure(model.settings.logging_enabled)
+                        .is_err();
+                if state.logging_failed {
+                    model.settings.logging_enabled = false;
+                }
+                state.save_failed = model.settings.save().is_err();
+            }
+            hint(ui, s::SETTINGS_LOGGING_HINT);
+            if state.logging_failed
+                || (model.settings.logging_enabled
+                    && !model.settings.ephemeral
+                    && !crate::diagnostics::logging::enabled())
+            {
+                badge(ui, Tone::Critical, s::SETTINGS_LOGGING_FAILED);
+            }
+            if state.save_failed {
+                badge(ui, Tone::Critical, s::SETTINGS_SAVE_FAILED);
+            }
+            if ui
+                .add(Button::new(s::SETTINGS_OPEN_LOGS).icon(Icon::Folder))
+                .clicked()
+                && let Some(dir) = crate::diagnostics::logging::directory()
+                && std::fs::create_dir_all(&dir).is_ok()
+            {
+                let _ = std::process::Command::new("explorer").arg(dir).spawn();
+            }
+        }
     });
     gap(ui);
 

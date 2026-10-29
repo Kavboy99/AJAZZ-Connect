@@ -77,6 +77,12 @@ pub(crate) fn install_native(ctx: &Context, state: RenderState) {
 pub(crate) fn configuration() -> eframe::egui_wgpu::WgpuConfiguration {
     let mut setup = eframe::egui_wgpu::WgpuSetupCreateNew::default();
     setup.instance_descriptor.backends = wgpu::Backends::DX12;
+    // HWND swapchains are opaque even when the window and clear color are transparent.
+    setup
+        .instance_descriptor
+        .backend_options
+        .dx12
+        .presentation_system = wgpu_types::Dx12SwapchainKind::DxgiFromVisual;
     let descriptor = setup.device_descriptor.clone();
     setup.device_descriptor = Arc::new(move |adapter| {
         let mut value = descriptor(adapter);

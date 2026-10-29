@@ -1,8 +1,8 @@
-//! Hue-only LED colors: color selection never introduces a dim or black value.
+//! Hue and saturation selection at full LED value.
 use super::{Interaction, focus_ring};
 use crate::core::Rgb;
 use crate::ui::strings as s;
-use crate::ui::theme::{Role, color, label, radius, size, space};
+use crate::ui::theme::{color, radius, size, space};
 use eframe::egui::{
     Color32, Id, Key, Sense, Stroke, Ui, Vec2, WidgetInfo, WidgetType, ecolor::Hsva, vec2,
 };
@@ -11,12 +11,14 @@ use std::f32::consts::TAU;
 pub struct Palette {
     hues: [f32; 3],
     active: usize,
+    saturation: f32,
 }
 impl Default for Palette {
     fn default() -> Self {
         Self {
             hues: [0.56, 0.82, 0.04],
             active: 0,
+            saturation: 1.0,
         }
     }
 }
@@ -24,8 +26,13 @@ impl Palette {
     pub fn colors(&self, count: usize) -> Vec<Color32> {
         self.hues[..count.clamp(1, 3)]
             .iter()
-            .map(|h| Hsva::new(*h, 1.0, 1.0, 1.0).into())
+            .map(|h| super::led_color::color(*h, self.saturation))
             .collect()
+    }
+    pub fn set_rgb(&mut self, rgb: Rgb) {
+        let hsv = Hsva::from_rgb(rgb.to_array().map(|c| f32::from(c) / 255.0));
+        self.hues[0] = hsv.h;
+        self.saturation = hsv.s;
     }
     pub fn rgb(&self) -> Rgb {
         let c = self.colors(1)[0];
@@ -81,9 +88,8 @@ pub fn lighting_palette(
         id.with("spectrum"),
         rect,
         count,
-        outer,
-        thickness,
-        stride,
+        [outer, thickness, stride],
+        palette.saturation,
     );
     for ring in 0..count {
         let r = outer - ring as f32 * stride;
@@ -95,7 +101,7 @@ pub fn lighting_palette(
             at,
             crate::ui::motion::tokens::RELEASE,
         );
-        let chosen: Color32 = Hsva::new(palette.hues[ring], 1.0, 1.0, 1.0).into();
+        let chosen = super::led_color::color(palette.hues[ring], palette.saturation);
         ui.painter().circle_filled(at, thickness * 0.38, chosen);
         ui.painter().circle_stroke(
             at,
@@ -109,7 +115,7 @@ pub fn lighting_palette(
         );
     }
     let r = (outer - count as f32 * stride - space::XS).max(space::S);
-    let chosen: Color32 = Hsva::new(palette.hues[palette.active], 1.0, 1.0, 1.0).into();
+    let chosen = super::led_color::color(palette.hues[palette.active], palette.saturation);
     ui.painter().circle_filled(center, r, chosen);
     ui.painter().circle_stroke(
         center,
@@ -118,18 +124,35 @@ pub fn lighting_palette(
     );
     let state = Interaction::of(ui, id, &response);
     focus_ring(ui.painter(), rect, radius::OVERLAY, state.focus);
-    label(
+    response.on_hover_text(s::STUDIO_HUE_HINT)
+}
+
+pub fn saturation(ui: &mut Ui, palette: &mut Palette) {
+    let mut saturation = palette.saturation * 100.0;
+    if super::lighting_slider::lighting_slider(
         ui,
-        s::STUDIO_HUE_HINT,
-        Role::Caption,
-        color::TEXT_SECONDARY.get(),
-    );
-    response
+        s::LIGHTING_SATURATION,
+        &mut saturation,
+        0.0..=100.0,
+        "%",
+    )
+    .changed()
+    {
+        palette.saturation = saturation / 100.0;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn white_and_pastels_round_trip() {
+        let mut p = Palette::default();
+        for color in [Rgb::new(255, 255, 255), Rgb::new(255, 192, 192)] {
+            p.set_rgb(color);
+            assert_eq!(p.rgb(), color);
+        }
+    }
     #[test]
     fn pointer_edits_only_the_ring_it_hits() {
         use eframe::egui::{
@@ -200,6 +223,7 @@ mod tests {
             let p = Palette {
                 hues: [hue as f32 / 360.0; 3],
                 active: 0,
+                saturation: 1.0,
             };
             for c in p.colors(3) {
                 assert_eq!(c.r().max(c.g()).max(c.b()), 255);

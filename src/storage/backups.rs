@@ -10,6 +10,15 @@ pub fn directory() -> Option<PathBuf> {
     identity::data_dir().map(|dir| dir.join("backups"))
 }
 
+/// A portable utility keeps user-selected archives beside its executable when that folder exists.
+pub fn export_directory() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|p| p.join("device-backups")))
+        .filter(|dir| dir.is_dir())
+        .or_else(|| directory().filter(|dir| dir.is_dir()))
+}
+
 /// `<kind>-<UTC timestamp>-<first 16 hex of the device fingerprint>.json`.
 pub fn store(kind: &str, device: &str, json: &[u8]) -> io::Result<()> {
     let directory = directory()

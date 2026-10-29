@@ -41,7 +41,8 @@ fn render(
         false,
         Settings {
             theme: scene.theme,
-            developer_mode: scene.name.contains("catalog") || scene.name == "settings",
+            ephemeral: true,
+            developer_mode: scene.name.contains("catalog") || scene.name.starts_with("settings"),
             show_all_devices: scene.name.contains("catalog"),
             ..Settings::default()
         },
@@ -56,7 +57,16 @@ fn render(
         .pointer
         .map(|(x, y)| Event::PointerMoved(pos2(x * width, y * scene.height)));
     let studio = scene.name.starts_with("studio-");
-    for frame in 0..if studio { 240 } else { SETTLE_FRAMES } {
+    let backup = scene.name.starts_with("backup-");
+    let workspace = studio || backup;
+    let looping = matches!(
+        scene.name,
+        "studio-native-rain" | "studio-native-snake" | "studio-native-windmill"
+    ) || scene.name.starts_with("studio-native-settings")
+        || scene.name.starts_with("studio-commit-");
+    let trace_framing = matches!(scene.name, "studio-lighting" | "studio-encoder");
+    let mut framing = super::review_motion::Trace::default();
+    for frame in 0..if workspace { 240 } else { SETTLE_FRAMES } {
         let mut events: Vec<_> = pointer.iter().cloned().collect();
         if studio {
             events.extend(super::review_studio::input(
@@ -104,7 +114,10 @@ fn render(
         };
         let started = std::time::Instant::now();
         let output = ctx.run(input, |ctx| app.frame(ctx));
-        if studio && frame == 200 {
+        if trace_framing {
+            framing.capture(frame, &output.shapes);
+        }
+        if workspace && frame == 200 {
             idle_gpu = Some(crate::ui::gpu_stats(&ctx));
         }
         if (26..60).contains(&frame) {
@@ -127,6 +140,7 @@ fn render(
         }
         last = Some(output);
     }
+    super::review_commit::verify(scene.name, &mut app)?;
     if scene.name == "device-opening" || scene.name == "device-reversing" {
         anyhow::ensure!(
             !crate::ui::device_reveal::hidden(&ctx, Id::new(("device-tile", 0usize))),
@@ -143,16 +157,46 @@ fn render(
         )?;
     }
     let output = last.ok_or_else(|| anyhow::anyhow!("no frame"))?;
-    if studio {
+    if trace_framing {
+        framing.verify(out, scene.name, label)?;
+    }
+    if scene.name.starts_with("settings-backups") {
+        for text in [
+            crate::ui::strings::BACKUP_TITLE,
+            crate::ui::strings::BACKUP_SAVE,
+            crate::ui::strings::BACKUP_LOAD,
+        ] {
+            let mut labels = Vec::new();
+            for shape in &output.shapes {
+                super::review_studio::labels(&shape.shape, text, &mut labels);
+            }
+            anyhow::ensure!(
+                labels.iter().any(|r| rect.contains_rect(*r)),
+                "Settings backup control is not visible: {text}"
+            );
+        }
+    }
+    if workspace {
         let stats = crate::ui::gpu_stats(&ctx);
+        if looping {
+            anyhow::ensure!(
+                idle_gpu
+                    .as_ref()
+                    .and_then(|v| v["renders"].as_u64())
+                    .zip(stats["renders"].as_u64())
+                    .is_some_and(|(before, after)| after > before),
+                "continuous preview stopped after the finite demonstration"
+            );
+        }
         anyhow::ensure!(
-            idle_gpu
-                .as_ref()
-                .is_some_and(|before| before["renders"] == stats["renders"]),
+            looping
+                || idle_gpu
+                    .as_ref()
+                    .is_some_and(|before| before["renders"] == stats["renders"]),
             "GPU work continued while workspace was idle"
         );
         anyhow::ensure!(
-            stats["working_views"] == 0,
+            looping || stats["working_views"] == 0,
             "temporary GPU attachments survived idle"
         );
         if scene.name.ends_with("-pointer") {
@@ -166,13 +210,44 @@ fn render(
             out.join(format!("{}-{label}-gpu.json", scene.name)),
             serde_json::to_vec_pretty(&stats)?,
         )?;
-        super::review_studio::verify(scene.name, &output.shapes, rect)?;
+        if studio {
+            super::review_studio::verify(scene.name, &output.shapes, rect)?;
+        }
+        if backup {
+            for text in [
+                crate::ui::strings::BACKUP_SAVE,
+                crate::ui::strings::BACKUP_LOAD,
+            ] {
+                let mut labels = Vec::new();
+                for shape in &output.shapes {
+                    super::review_studio::labels(&shape.shape, text, &mut labels);
+                }
+                anyhow::ensure!(
+                    labels.iter().any(|r| rect.contains_rect(*r)),
+                    "backup action clipped: {text}"
+                );
+            }
+            if scene.name != "backup-main" {
+                let mut labels = Vec::new();
+                for shape in &output.shapes {
+                    super::review_studio::labels(
+                        &shape.shape,
+                        crate::ui::strings::STUDIO_LIGHTING,
+                        &mut labels,
+                    );
+                }
+                anyhow::ensure!(
+                    labels.is_empty(),
+                    "backup utility exposes the lighting editor"
+                );
+            }
+        }
         let delay = output
             .viewport_output
             .get(&eframe::egui::ViewportId::ROOT)
             .map(|o| o.repaint_delay);
         anyhow::ensure!(
-            delay == Some(std::time::Duration::MAX),
+            looping || delay == Some(std::time::Duration::MAX),
             "{}: workspace continues repainting at rest: {delay:?}",
             scene.name
         );
@@ -181,7 +256,8 @@ fn render(
             serde_json::to_vec_pretty(&serde_json::json!({
                 "frame_mean_ms": motion_times.iter().sum::<f64>() / motion_times.len() as f64,
                 "frame_max_ms": motion_times.iter().copied().fold(0.0, f64::max),
-                "idle_repaint": false
+                "idle_repaint": looping,
+                "continuous_editor_preview": looping
             }))?,
         )?;
     }
@@ -192,15 +268,22 @@ fn render(
 }
 
 pub fn run(directory: &Path, filter: Option<&str>) -> Result<()> {
+    if filter == Some("backup-tool") {
+        return super::review_backup_tool::run(directory);
+    }
     let gpu = crate::ui::ReviewGpu::new()?;
     preload_models();
     std::fs::create_dir_all(directory)?;
     let studio = super::review_studio::scenes();
     let lighting = super::review_lighting::scenes();
+    let commits = super::review_commit::scenes();
+    let illumination = super::review_illumination::scenes();
     let scenes: Vec<_> = SCENES
         .iter()
         .chain(studio.iter())
         .chain(lighting.iter())
+        .chain(commits.iter())
+        .chain(illumination.iter())
         .filter(|scene| filter.is_none_or(|f| scene.name.starts_with(f)))
         .collect();
     anyhow::ensure!(!scenes.is_empty(), "no review scene matches the filter");

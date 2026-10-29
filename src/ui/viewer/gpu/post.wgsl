@@ -16,9 +16,26 @@ struct Fragment { @builtin(position) position: vec4<f32>, @location(0) uv: vec2<
 fn blur(uv: vec2<f32>, direction: vec2<f32>) -> vec4<f32> {
     let texel=1.0/vec2<f32>(textureDimensions(source));
     let at=uv*g.viewport.w;
-    return textureSample(source,linear_sampler,at)*0.227027
-        +(textureSample(source,linear_sampler,at+direction*texel*1.384615)+textureSample(source,linear_sampler,at-direction*texel*1.384615))*0.316216
-        +(textureSample(source,linear_sampler,at+direction*texel*3.230769)+textureSample(source,linear_sampler,at-direction*texel*3.230769))*0.070270;
+    let sigma=mix(1.6,2.6,g.post.w);
+    var sum=vec4<f32>(0.0);
+    var total=0.0;
+    for(var i=-7;i<=7;i++) {
+        let x=f32(i);
+        let weight=exp(-0.5*x*x/(sigma*sigma));
+        sum+=textureSample(source,linear_sampler,at+direction*texel*x)*weight;
+        total+=weight;
+    }
+    return sum/total;
+}
+// Integrate thin luminous gaps before reducing resolution; sparse taps create grid ghosts.
+@fragment fn downsample(v: Fragment) -> @location(0) vec4<f32> {
+    let texel=1.0/vec2<f32>(textureDimensions(source));
+    let at=v.uv*g.viewport.w;
+    var sum=vec4<f32>(0.0);
+    for(var y=0;y<4;y++) { for(var x=0;x<4;x++) {
+        sum+=textureSample(source,linear_sampler,at+(vec2<f32>(f32(x),f32(y))-vec2<f32>(1.5))*texel);
+    } }
+    return sum/16.0;
 }
 @fragment fn horizontal(v: Fragment) -> @location(0) vec4<f32> { return blur(v.uv,vec2<f32>(1.0,0.0)); }
 @fragment fn vertical(v: Fragment) -> @location(0) vec4<f32> { return blur(v.uv,vec2<f32>(0.0,1.0)); }
@@ -35,16 +52,18 @@ fn gamma(v: vec3<f32>) -> vec3<f32> { return select(12.92*v,1.055*pow(v,vec3<f32
     let depth=linear_depth(textureLoad(depth_map,pixel,0));
     var occlusion=0.0;
     let offsets=array<vec2<i32>,8>(vec2<i32>(-7,0),vec2<i32>(7,0),vec2<i32>(0,-7),vec2<i32>(0,7),vec2<i32>(-5,-5),vec2<i32>(5,5),vec2<i32>(-5,5),vec2<i32>(5,-5));
+    let radius=clamp(g.viewport.x/900.0,0.65,2.5);
     for(var i=0;i<8;i++) {
-        let q=clamp(pixel+offsets[i],vec2<i32>(0),size-vec2<i32>(1));
+        let q=clamp(pixel+vec2<i32>(vec2<f32>(offsets[i])*radius),vec2<i32>(0),size-vec2<i32>(1));
         let neighbor=linear_depth(textureLoad(depth_map,q,0));
         let delta=depth-neighbor;
-        if delta>0.018 && delta<0.25 { occlusion+=1.0; }
+        occlusion+=smoothstep(0.004,0.018,delta)*(1.0-smoothstep(0.08,0.22,delta));
     }
-    let ao=1.0-occlusion*0.045*select(0.0,1.0,normal_sample.a>0.5);
-    let halo=min(max(max(glow.r,glow.g),glow.b)*0.035,0.18);
+    let ao=1.0-occlusion*mix(0.045,0.07,g.post.w)*select(0.0,1.0,normal_sample.a>0.5);
+    let halo=min(max(max(glow.r,glow.g),glow.b)*0.24,0.5);
     let alpha=hdr.a+halo*(1.0-hdr.a);
     if alpha<0.0001 { return vec4<f32>(0.0); }
-    let radiance=(hdr.rgb*ao+glow*0.065)/alpha;
+    let vignette=1.0-g.post.w*0.14*smoothstep(0.18,0.65,length(v.uv-vec2<f32>(0.5)));
+    let radiance=(hdr.rgb*ao*vignette+glow*0.5)/alpha;
     return vec4<f32>(gamma(aces(radiance*g.post.z))*alpha,alpha);
 }

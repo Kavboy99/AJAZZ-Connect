@@ -3,6 +3,7 @@
 //! consistent antialiasing. An idle tile costs one textured rectangle and no computation.
 
 mod catalog;
+pub(crate) mod effect_speed;
 mod glb;
 mod gltf;
 pub(crate) mod gpu;
@@ -13,6 +14,7 @@ mod math;
 pub(crate) mod native_effect;
 mod preview;
 mod raster;
+pub(crate) mod reactive;
 
 pub use catalog::preload;
 pub use preview::{Effect, Preview, binding};
@@ -39,7 +41,7 @@ struct View {
 
 #[derive(Clone, PartialEq)]
 struct Key {
-    pose: [i32; 11],
+    pose: [i32; 12],
     side: usize,
     effects: Vec<[u8; 4]>,
 }
@@ -50,6 +52,7 @@ impl Key {
         let q = |v: f32, step: f32| (v / step).round() as i32;
         Self {
             pose: [
+                q(pose.studio, 0.01),
                 q(pose.yaw, 0.002),
                 q(pose.pitch, 0.002),
                 q(pose.lift, 0.004),

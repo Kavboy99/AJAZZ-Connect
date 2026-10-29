@@ -58,6 +58,10 @@ pub struct Identification {
 pub trait Driver: Send + Sync {
     fn info(&self) -> DriverInfo;
 
+    fn supports_configuration_backup(&self) -> bool {
+        false
+    }
+
     /// Static native-program metadata only. Must not open a transport or discover devices.
     fn lighting_preview(&self) -> Option<super::LightingPreview> {
         None
@@ -81,6 +85,10 @@ pub trait Driver: Send + Sync {
 /// A found and identified device: a passport plus a set of capabilities.
 pub trait Device: Send {
     fn descriptor(&self) -> &DeviceDescriptor;
+
+    fn configuration_backup(&mut self) -> Option<&mut dyn super::ConfigurationBackup> {
+        None
+    }
 
     fn battery(&mut self) -> Option<&mut dyn super::Battery> {
         None

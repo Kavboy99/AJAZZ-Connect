@@ -35,7 +35,8 @@ impl Globals {
             &math::perspective(0.42 / pose.zoom.max(0.1), 1.0, near, far),
         );
         let view_projection = math::mul(&projection, &math::translation([0.0, 0.0, -distance]));
-        let light = math::normalize([-0.5, 0.85, 0.65]);
+        let studio = pose.studio.clamp(0.0, 1.0);
+        let light = math::normalize([-0.5, 0.85 - studio * 0.3, 0.65]);
         let eye = light.map(|v| v * 6.0);
         let light_view = look_at(eye, [0.0; 3]);
         let shadow = math::mul(&orthographic(2.25, 0.1, 12.0), &light_view);
@@ -50,8 +51,8 @@ impl Globals {
                 1.0 / 2048.0,
                 side as f32 / capacity as f32,
             ],
-            light: [light[0], light[1], light[2], 0.0],
-            post: [near, far, 0.8, 0.0],
+            light: [light[0], light[1], light[2], studio],
+            post: [near, far, 0.8, studio],
         }
     }
 }

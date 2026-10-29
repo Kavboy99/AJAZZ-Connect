@@ -21,6 +21,7 @@ struct State {
     responder: Responder,
     backups: Vec<(String, Vec<u8>, usize)>,
     descriptor: Option<Vec<u8>>,
+    backup_fails: bool,
 }
 
 pub struct FakeBus {
@@ -39,6 +40,7 @@ impl FakeBus {
                 responder,
                 backups: Vec::new(),
                 descriptor: None,
+                backup_fails: false,
             })),
         })
     }
@@ -51,6 +53,10 @@ impl FakeBus {
         if let Ok(mut state) = self.state.lock() {
             state.descriptor = Some(descriptor);
         }
+    }
+
+    pub fn fail_backups(&self) {
+        self.state.lock().unwrap().backup_fails = true;
     }
 
     pub fn backups(&self) -> Vec<(String, Vec<u8>)> {
@@ -168,6 +174,9 @@ impl Bus for FakeBus {
 
     fn store_backup(&self, kind: &str, _device: &str, json: &[u8]) -> Result<(), DriverError> {
         if let Ok(mut s) = self.state.lock() {
+            if s.backup_fails {
+                return Err(DriverError::Io("synthetic backup storage failure".into()));
+            }
             let at = s.log.len();
             s.backups.push((kind.into(), json.to_vec(), at));
         }

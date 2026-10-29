@@ -89,7 +89,8 @@ pure `#FFFFFF`/`#000000` never appear.
 | `accent.pressed` | `#3F9FD8` | Pressed |
 | `accent.subtle` | `#243F50` | Background of the selected navigation item and of a highlighted row |
 | `status.success` | `#6CCB5F` | Success |
-| `status.caution` | `#E0B84A` | Warning, experimental |
+| `status.caution` | `#E0B84A` | Warning |
+| `status.experimental` | `#FFA64D` | Small experimental caption below Back; light theme uses `#9C4800` |
 | `status.critical` | `#E8808A` | Error, irreversible action |
 | `status.info` | = `accent` | Information |
 | `device.glow` | `#4DB2E8` | Light behind a hovered device model and its rim light (8.1); never text |
@@ -154,6 +155,7 @@ Segoe UI). We bundle no fonts of our own. The fallback is the built-in `egui` fo
 | Role | Size / line height | Weight |
 | --- | --- | --- |
 | Caption | 12 / 16 | Regular |
+| Caption Light | 12 / 16 | Light; secondary experimental status below Back only |
 | Body | 14 / 20 | Regular (main text) |
 | Body Strong | 14 / 20 | SemiBold |
 | Subtitle | 20 / 28 | SemiBold (section heading) |
@@ -223,31 +225,62 @@ a fixed page width, nothing stops in the middle of a wide window, nothing overfl
 The initial window is 1360 x 840 logical pixels. Device pages reserve the available viewport instead of
 joining the page scroll. Opening a device temporarily compacts navigation to 48 px; returning restores
 the previous list preference. A large model leads, followed by identity, battery, compact USB/firmware
-facts and capability actions on the trailing side. There is no duplicate About card.
+facts and capability actions on the trailing side. USB identifiers, firmware and release codes live
+in a hover tooltip on the connection status, including its icon. Battery stays visible separately.
+There is no duplicate About card or standing preview-without-writing caption.
+
+**Device capability actions.** Lighting, encoder and every future capability entry point use the
+shared `ActionTile` widget: medium square tiles, never small horizontal buttons. Each tile has an
+8 px corner radius, a centered 40 px icon from the icon set and a wrapping 14 px label below it, with each line centered.
+All actions have equal visual weight and align to a regular grid with 12 px gaps. Tile sides reflow
+between 112 and 144 px from the size tokens; the grid derives its column count from available width.
+Keep square proportions when resizing, use additional rows for more actions and allow only the
+action grid to scroll if it exceeds the remaining height. Do not stretch tiles into long rows.
+Hover, press and keyboard focus use the shared spring interaction and focus ring. This pattern is
+mandatory for all current and future devices and capability actions; ordinary editor controls,
+navigation and explicit Apply/Select buttons retain their control styles.
 
 Lighting and encoder actions open a bottom island with choices: title, visual sample and a
 Settings button. Choosing a mode centers the enlarged model, removes identity and targets the camera
 at the relevant part. Settings restores a trailing inspector and moves the model aside. Camera pose,
-zoom, focus, island travel and panel width use interruptible springs. Reduced motion drops spatial
+zoom, focus, island travel and panel width use critically damped `spring.workspace` transitions,
+without bounce. Resolve the model's fitted square and center from the destination layout first, then
+animate them directly. Never fit the model to an intermediate animated panel rectangle: its expanding
+width and shrinking height can reverse the model's scale even with critical damping. Measure notice
+space against the destination width too. Encoder framing also interpolates instead of switching size on entry. Overshoot is
+reserved for opening a device from the list. Reduced motion drops spatial
 travel through the shared motion system. Selection also has a check, border and title.
 
 `STUDIO_PANEL` is 300 px, capped at 43% of available width. Below `SECTION_COLUMNS` the inspector
-stacks; only its contents can scroll. Below `STUDIO_SHORT_HEIGHT` the island is 184 px instead of
+stacks. The inspector must never scroll: all controls and actions fit its available height. Reserve complete control rows first and scale the wheel into the remaining space. At short heights place the wheel beside the controls, with hardware actions wrapping below. Below `STUDIO_SHORT_HEIGHT` the island is 184 px instead of
 220 px, including its dedicated close-button header. The page never grows to fit editor contents.
-The top Back action always returns to the device list. The island's close button returns to the device
-overview. Escape unwinds inspector, editor and device. The settings action is inside each card at its
+Experimental devices show a small Segoe UI Light caption below Back, in the orange experimental status color,
+without a badge, icon or background. Do not repeat it in the device identity or editor messages.
+The top Back action and Escape unwind inspector, editor and device in that order. The island's close
+button remains available and returns directly to the device overview. Backup actions live in Settings,
+outside the device workspace. The settings action is inside each card at its
 bottom trailing corner; the title stays inside the same card above the sample.
 
 Visual bindings in `assets/models/stages.toml` associate asset node names with key input and encoder
 focus; they confer no hardware support. Solid/Wave/Reactive are model previews. Wave runs for 1.6 s
-after selection or Demonstration and stops; held keys and short release tails also stop when settled.
+after selection and stops; held keys and short release tails also stop when settled. Native continuous
+effects preview automatically while focused; no separate demonstration action is needed.
 Input comes only from the focused window and is suppressed during text entry. Encoder assignments are
-local placeholders. Hardware color writes remain a separate explicit action for supported live drivers.
+local placeholders. Native lighting drafts update the preview immediately; only explicit Select or Apply writes to the device. Page opening, card selection and sliders never write.
 
 Drivers with native lighting programs replace the three preview choices with a horizontally scrollable
 catalog supplied by the lighting capability. The inspector exposes only supported brightness, speed
-and custom-color controls. Preset selection and sliders edit a local draft; Apply is always explicit.
+and custom-color controls. Preset selection and sliders edit a local draft; Apply is always explicit. A card click changes the preview and accent outline only. A separate checkmark identifies the mode last read from the connected device, independent of the preview selection. Put Select beside Settings on unapplied native program cards; omit Select on the device-confirmed current card. Apply remains available in its inspector for edited settings. Select commits that card draft; Apply in the inspector commits the inspected draft through the same path. Move the checkmark only after successful device confirmation. Pending or failed writes keep the last confirmed marker; static/offline catalogs have no applied marker. Local preferences never supply the applied state. Native drafts never enter an automatic write queue. Background battery reads must not gray or flash Apply. An explicit commit may wait for an in-flight telemetry worker; the completion event dispatches it once. Slider rows and commit actions use stable widget identities independent of preceding controls.
 Native model demonstrations are labeled illustrative, since firmware owns the actual animation.
+The owner's 2026-10-29 correction supersedes the finite-demo rule for native continuous programs:
+they animate while the lighting editor is focused, stop when closed/unfocused or reduced motion is
+enabled, and key-triggered programs stay dark without actual key events. Hardware id 7 was explicitly
+verified by the owner as key-triggered. Spatial timing remains illustrative until separately verified.
+Native preset cards retain the original rectangular surfaces, selection borders/checks, interaction
+springs and trailing Settings action. The hue wheel and compact saturation/brightness/speed controls fit without scrolling for every preset. Custom color is the default for programs supporting it; rainbow-only
+hardware modes retain their palette restrictions. Named native effects share distinct illustrative
+spatial/temporal models between the cards and 3D stage. Static/reactive states cache at rest; native
+continuous modes run only in the focused editor as requested by the owner.
 Brightness scales emission through the shared spring system without dimming the hue rings or plastic.
 When a driver supplies static preview metadata but the connection has no lighting capability, keep
 the same program catalog and controls visible with illustrative values, an explicit connection hint
@@ -258,11 +291,13 @@ and disabled Apply. Offline catalog pages use this metadata too and never create
 The lighting picker contains concentric hue rings: one for Solid/Reactive and three for Wave. Every
 ring is independent and separated by an 8 px inset. Its marker follows a release spring; the outlined
 center previews the active color. Keyboard Left/Right changes hue and Up/Down selects a ring. This is
-LED color selection, so saturation and value stay at 100%; black and dim colors are not choices.
+LED color selection: value stays at 100%; saturation ranges from white to vivid color, allowing pastel shades.
 Hue and radial edge coverage are evaluated per texture pixel, at native display density with a 2x
 minimum. Both edges must stay smooth; the wheel texture is cached independently of the moving marker.
 At short heights the entire wheel scales to the available inspector height; duplicate headings are
-omitted. Hardware actions stay in an explicitly labeled collapsed section below the picker.
+omitted. Saturation updates the hue rings, markers and center together at full LED value; 0% is white, so there is no separate White button. Show saturation as a whole percentage. The ring cache includes saturation and updates only when its inputs change. HSV selection operates directly on the RGB channel byte values: 50% cyan saturation is 128/255/255, with no additional display-gamma encoding applied to the device bytes. The ring, marker, center and transmitted color share this conversion; device color calibration is a separate concern.
+
+Lighting sliders use a 12 px circular thumb with a dark-gray center and a 2 px theme-accent outline, on a 4 px rail; retain a 24 px interaction row and keyboard/numeric input. Labels, tracks and values align in columns. The normal editor has no standing information strip. Show at most one current connection blocker or failure below the model and above the island; reserve its measured height. Loading belongs on the clicked button and the confirmed mode has its card checkmark. Do not add routine success text or explanations of persistence, backups, protocol validation, preview algorithms or missing rollback to the workspace. These rules apply at 720/1040/1600 px, the 520 px minimum height and in both themes.
 
 Device textures retain their native resolution up to 4096 px. The keyboard's 1536 px atlas must never
 be halved for a workspace; tiles reuse the same parsed asset. Texture coordinates are interpolated
@@ -289,18 +324,28 @@ Acrylic is a translucent blurred Windows 11 material. We use it **sparingly**.
   more than the effect.
 - **A fallback is mandatory:** if "transparency effects" are off in Windows, the window is inactive or
   battery saver is on, the surface is filled with an opaque token (`surface.base` / `surface.overlay`).
-- **Implementation:** the blur is done by the system DWM: the window backdrop type is set with the
-  `DWMWA_SYSTEMBACKDROP_TYPE` attribute (Windows 11 22H2 and later; Acrylic or Mica) through `windows-rs`
-  or the `window-vibrancy` crate, and the window is created with a transparent background. The WinUI 3
-  guidelines recommend Mica for a long-lived window and acrylic for transient ones; which one we take is
-  decided on a prototype by looks and load (section 5 of `ARCHITECTURE.md`). Custom blur shaders and
-  constant repainting for the sake of the effect are forbidden. On systems without material support the
-  window runs on fallback colors with no loss of function.
-- **Decision (0.3.0):** Mica, applied with `window_vibrancy::apply_mica` in `ui/mod.rs`. If it fails
-  (Windows 10), the navigation pane is filled with `surface.base`. The content area is an opaque
-  `surface.base` layer with an 8 px top-left radius and a `stroke.subtle` border. The look on real
-  hardware still has to be confirmed on a Windows 11 machine with transparency effects on.
-
+- **Implementation:** DWM composes one native Acrylic material behind the caption and the
+  transparent navigation area. `transport/acrylic.rs` extends the DWM frame into the client area
+  and sets `DWMWA_SYSTEMBACKDROP_TYPE` to `DWMSBT_TRANSIENTWINDOW`. The caption's immersive dark
+  mode follows the application palette, so caption buttons remain readable. Windows owns material
+  tint, opacity and inactive-window fallback; the application does not impose an accent-color fill.
+  The DX12 swapchain uses a DirectComposition visual with premultiplied alpha. The HWND's legacy
+  blur region must cover the entire window with alpha enabled (`DWM_BB_ENABLE | DWM_BB_BLURREGION`,
+  `fEnable = TRUE`, null region); disabling it exposes an opaque redirection bitmap after repaint.
+  On the frame after eframe's first presentation, initialize the HWND client redirection surface
+  to zero using the stock black GDI brush and retain that class brush for exposed resize regions.
+  DWM attributes and a transparent swapchain alone do not clear the initially white native bitmap.
+  This is initialization of native glass, not application backdrop rendering or a GPU readback.
+  Content remains opaque. Unsupported DWM composition uses `surface.base`.
+- **Correction (2026-10-29):** replaced winit's empty legacy region with a full-window alpha region
+  instead of disabling it. Caption, navigation icons and fallback colors now follow the selected
+  application theme together, even when Windows uses the opposite theme. Native review covers both
+  palettes, 720/1040/1600 px, forced repaints and minimize/restore. Native Acrylic opacity remains
+  system-controlled; custom opacity is not claimed.
+- **Ordinary-launch regression (2026-10-29):** native review previously resized/repainted the window
+  before capture, concealing the white HWND client bitmap. Acceptance now includes launching the
+  packaged EXE without arguments and capturing the expanded navigation before any resize, repaint
+  request or material adjustment from the capture helper.
 ## 7. Icons
 
 The only source is the **Hugeicons** set (hugeicons.com), one style across the whole application
@@ -398,7 +443,7 @@ workspace and picker. Implementation and measured costs live in `ARCHITECTURE.md
 the available viewport. It must not force page scrolling. Keep identity and actions in the trailing
 panel in overview. Opening a visual editor removes identity, centers/enlarges the model and smoothly
 focuses the relevant physical region. Opening settings moves the model aside and uses that panel for
-the inspector. Closing the island restores overview; the top Back button still returns to the list.
+the inspector. Closing the island restores overview; the top Back button unwinds one level at a time.
 
 | State | Required model behavior |
 | --- | --- |
@@ -438,6 +483,12 @@ glowing source. The reference stage uses roughness/metallic shading, shadow mapp
 visible result. Do not describe this approximation as measured hardware output or ray tracing.
 Mode/color changes and focused-window key presses must affect the corresponding model parts.
 Maintain the full-brightness, smooth concentric LED hue rings specified in 5.3.
+The opened device uses a directional studio rig with reduced fill, stronger contact shading and a
+subtle model-edge vignette; the rig blends with the shared-surface reveal. A soft stage shadow grounds
+the case without darkening the controls. LED bloom must prefilter thin luminous gaps before
+downsampling and use the same blur footprint on both axes. Reactive waves retain a bright front and
+a smooth, finite wake in model space; decay scales linear radiance rather than the selected sRGB
+color. Camera movement must not leave screen-space ghost copies of the device.
 
 **Cost and separation from hardware.** Use the GPU and sample native output textures directly without
 per-frame CPU readback. Upload static geometry/materials and build legend atlases once per visual.
@@ -445,7 +496,7 @@ Cache the resolved image; render again only for changed pose, size or effects. A
 release tails and finite effect demonstrations settle, stop requesting animation frames and submitting
 model work. Release large HDR/MSAA/depth/shadow/bloom work targets at rest or when hidden. No permanent
 animation threads, polling or autonomous demonstrations. Visual bindings grant no hardware support;
-preview changes never write to a device. Hardware writes remain separate explicit actions.
+passive preview rendering never writes to a device. Explicit user edits to native lighting enqueue coalesced configuration writes with backup/read-back. Offline previews never access hardware.
 
 **Acceptance.** Review overview, lighting, part zoom and settings at 720/1040/1600 px, including the
 minimum height, both themes, pointer movement while zoomed, close/reversal and reactive key feedback.
@@ -512,6 +563,7 @@ from them: `ω = 2π/T`, `k = ω²`, `c = 2ζω`.
 | `spring.fast` | 0.18 | 1.00 | ≈ 0.14 s | Hover, press, focus, row highlight, an element's color change |
 | `spring.standard` | 0.30 | 1.00 | ≈ 0.23 s | Switches, item selection, expanding a group, popups |
 | `spring.page` | 0.40 | 0.95 | ≈ 0.30 s | Transitions between pages and windows |
+| `spring.workspace` | 0.40 | 1.00 | ≈ 0.30 s | Device editor camera, pointer tracking, framing, island and inspector; no overshoot |
 | `spring.device_reveal` | 0.52 | 0.85 | Overshoot about 0.6% | Only the shared model during device opening; return uses `spring.page` |
 | `spring.release` | 0.32 | 0.80 | ≈ 0.3 s, overshoot ≈ 1.5% | Sliders, the color-picker marker, return after a gesture |
 | `spring.tilt` | 0.50 | 0.90 | ≈ 0.4 s, overshoot ≈ 0.2% | A device model turning toward the pointer (8.1) |
@@ -624,3 +676,11 @@ Rules:
 - [ ] With Windows animations turned off, the interface remains usable.
 - [ ] The idle window does not repaint (checked in Task Manager), including after animations.
 - [ ] A before/after screenshot is attached to the change description.
+
+
+Lighting sliders use compact accent-outlined circular handles with dark-gray centers. Speed 0 means very slow motion; preview phase advances at a positive rate without resetting when speed changes.
+
+
+### Dedicated backup utility
+
+At the owner's request, the separate backup executable uses a minimal, independent window with a device selection control, archive actions and status. It does not include Studio navigation, 3D previews, lighting or encoder editors. The main application's discovered-device inventory retains the square 3D tile standard; the Settings backup selection control is an operation target selector, not a replacement inventory. Its first Settings card always exposes Save and Restore affordances, disabled with a clear reason when unavailable. Partial snapshot coverage must stay explicit.

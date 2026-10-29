@@ -1,6 +1,8 @@
 //! Application state without the interface: the device session, diagnostics, settings and the
 //! event channel from short-lived worker threads. Knows no brands and no drivers by name.
 
+mod backup_discovery;
+pub mod backup_session;
 pub mod diagnostics;
 mod discovery;
 pub mod events;

@@ -9,6 +9,9 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
     /// Backups are small JSON files; anything larger is not ours.
     pub const MAX_BYTES: usize = 128 * 1024;
 

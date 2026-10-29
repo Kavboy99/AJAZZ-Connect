@@ -6,7 +6,11 @@ mod lighting_probe;
 mod probe;
 mod raster;
 mod review;
+mod review_backup_tool;
+mod review_commit;
+mod review_illumination;
 mod review_lighting;
+mod review_motion;
 mod review_scenes;
 mod review_state;
 mod review_studio;
@@ -29,6 +33,12 @@ pub fn run(args: &[OsString]) -> Option<Result<()>> {
     let command = args.first()?.to_str().unwrap_or_default().to_owned();
     Some(match command.as_str() {
         "--probe" => path(args, 1, "report path").and_then(|out| probe::run(&out)),
+        "--pack-backup" => path(args, 1, "source backup").and_then(|input| {
+            let output = path(args, 2, "archive path")?;
+            let snapshot = crate::storage::archive::load(&input)?;
+            crate::storage::archive::save(&output, &snapshot)?;
+            Ok(())
+        }),
         "--inspect" => path(args, 1, "package path")
             .and_then(|input| Ok((input, path(args, 2, "report path")?)))
             .and_then(|(input, out)| inspect::run(&input, &out)),
@@ -41,8 +51,14 @@ pub fn run(args: &[OsString]) -> Option<Result<()>> {
             .and_then(|(driver, out)| lighting_probe::run(&driver, &out)),
         "--review" => path(args, 1, "review directory")
             .and_then(|dir| review::run(&dir, args.get(2).and_then(|s| s.to_str()))),
-        "--review-window" => path(args, 1, "GPU metrics file")
-            .and_then(|out| crate::ui::run_preview(review_state::devices(), out)),
+        "--review-window" => path(args, 1, "GPU metrics file").and_then(|out| {
+            let theme = match args.get(2).and_then(|s| s.to_str()) {
+                None | Some("dark") => crate::app::Theme::Dark,
+                Some("light") => crate::app::Theme::Light,
+                _ => anyhow::bail!("native review theme must be dark or light"),
+            };
+            crate::ui::run_preview(review_state::devices(), out, theme)
+        }),
         other => Err(anyhow::anyhow!("unknown command {other}. Usage: {USAGE}")),
     })
 }

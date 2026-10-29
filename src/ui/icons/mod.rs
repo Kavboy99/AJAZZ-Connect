@@ -18,6 +18,7 @@ const STROKE: f32 = 1.5;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Icon {
     /// The application itself (also the window and EXE icon, `app_icon.rs`).
+    Touch,
     App,
     Keyboard,
     Mouse,
@@ -52,7 +53,8 @@ pub enum Icon {
 }
 
 impl Icon {
-    const ALL: [Icon; 29] = [
+    const ALL: [Icon; 30] = [
+        Icon::Touch,
         Icon::App,
         Icon::Keyboard,
         Icon::Mouse,
@@ -86,6 +88,7 @@ impl Icon {
 
     fn elements(self) -> &'static [Element] {
         match self {
+            Icon::Touch => glyphs::TOUCH_01,
             Icon::App => glyphs::GAME_CONTROLLER_03,
             Icon::Keyboard => glyphs::KEYBOARD,
             Icon::Mouse => glyphs::MOUSE,

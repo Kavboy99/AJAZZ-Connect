@@ -362,6 +362,38 @@
       "sha256": "ae7f98aec5d8fa335f6651385e2e02419a6451b350f9e78d9ef3e4ed0d1f35cb",
       "url": "https://github.com/deepan-alve/womier-l65-linux/blob/main/linux/l65ctl.py",
       "use": "Protocol facts only; original implementation not linked or executed"
+    },
+    {
+      "repository": "AJAZZ published AK820 MAX driver package",
+      "path": "AJAZZ_AK820_MAX_driver_V1.0.zip",
+      "local_path": "research/downloads/ak820max-color-audit/vendor.zip",
+      "retrieved_date": "2026-10-29",
+      "sha256": "a264ecb265b3c1eb3d60b6138e89b785f39f83c3b668f564be22107e30b0d6cf",
+      "url": "https://cdn.shopify.com/s/files/1/0554/6678/6869/files/AJAZZ_AK820_MAX_driver_V1.0.zip?v=1758597454"
+    },
+    {
+      "repository": "AJAZZ published AK820 MAX driver package",
+      "path": "AJAZZ_AK820_MAX_driver_V1.0.rar",
+      "local_path": "research/downloads/ak820max-color-audit/vendor.rar",
+      "retrieved_date": "2026-10-29",
+      "sha256": "b42fd409b251402eb43d0c07385093301fda6aedacffbb8d67493f89ae590274",
+      "url": "https://cdn.shopify.com/s/files/1/0554/6678/6869/files/AJAZZ_AK820_MAX_driver_V1.0.zip?v=1758597454"
+    },
+    {
+      "repository": "AJAZZ published AK820 MAX driver package",
+      "path": "app/OemDrv.exe",
+      "local_path": "research/downloads/ak820max-color-audit/unpacked/app/OemDrv.exe",
+      "retrieved_date": "2026-10-29",
+      "sha256": "fc7109b0467602a7624b2a83402bae12255ad5ad2e9483a2c4750c584231c06c",
+      "url": "https://cdn.shopify.com/s/files/1/0554/6678/6869/files/AJAZZ_AK820_MAX_driver_V1.0.zip?v=1758597454"
+    },
+    {
+      "repository": "AJAZZ published AK820 MAX driver package",
+      "path": "app/Dev/kb/Thr/KB.ini",
+      "local_path": "research/downloads/ak820max-color-audit/unpacked/app/Dev/kb/Thr/KB.ini",
+      "retrieved_date": "2026-10-29",
+      "sha256": "e8ae2220482247ed1348deb33832cbcfe67628595befa47b791a44ad381690dc",
+      "url": "https://cdn.shopify.com/s/files/1/0554/6678/6869/files/AJAZZ_AK820_MAX_driver_V1.0.zip?v=1758597454"
     }
   ]
 }

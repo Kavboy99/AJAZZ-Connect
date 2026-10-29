@@ -2,6 +2,10 @@
 
 Project-owned Rust protocol implementations are written from protocol descriptions. Third-party dependency and reference licenses remain applicable; the proprietary device-control architecture does not replace those obligations.
 
+Backup archives use the Rust `flate2` crate (MIT OR Apache-2.0) with its default Rust backend.
+The archive envelope/checksums use the existing serde/serde_json and sha2 dependencies. No vendor
+binary or external archiver is shipped with the backup utility.
+
 Эталон tests/fixtures/microsoft-lamparray-descriptor.bin извлечён без изменения байтов
 из LampArrayReportDescriptor.h проекта Microsoft ArduinoHidForWindows (MIT):
 https://github.com/microsoft/ArduinoHidForWindows

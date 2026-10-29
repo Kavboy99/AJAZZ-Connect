@@ -51,6 +51,9 @@ pub struct Pages {
 }
 
 impl Pages {
+    pub(crate) fn preview_backups(&mut self, found: crate::app::events::Discovered) {
+        self.settings.preview_backups(found);
+    }
     /// Device list changed: per-device state no longer matches the slots.
     pub fn forget_devices(&mut self) {
         self.lighting.clear();

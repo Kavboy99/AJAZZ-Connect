@@ -1,5 +1,5 @@
 //! Synthetic states for `--review`. These devices exist only in memory: they never open HID or a
-//! socket, and every operation on them fails.
+//! socket. Explicit commit scenes may acknowledge changes in their in-memory state only.
 
 use crate::app::events::{Discovered, DriverNote};
 use crate::core::{
@@ -13,9 +13,13 @@ struct ReviewDevice {
     traits: LightingTraits,
     programs: Option<crate::core::LightingEditor>,
     lighting_available: bool,
+    confirm_writes: bool,
 }
 
 impl Device for ReviewDevice {
+    fn configuration_backup(&mut self) -> Option<&mut dyn crate::core::ConfigurationBackup> {
+        (self.programs.is_some() && self.lighting_available).then_some(self)
+    }
     fn descriptor(&self) -> &DeviceDescriptor {
         &self.descriptor
     }
@@ -25,11 +29,46 @@ impl Device for ReviewDevice {
     }
 }
 
+impl crate::core::ConfigurationBackup for ReviewDevice {
+    fn backup_info(&self) -> crate::core::BackupInfo {
+        crate::core::BackupInfo {
+            coverage: crate::core::BackupCoverage::SystemAndPalette,
+            restore: Some(crate::core::RestoreScope::SystemConfiguration),
+        }
+    }
+    fn capture(&mut self) -> Result<Snapshot, DriverError> {
+        Err(offline())
+    }
+    fn check_backup(&self, _: &Snapshot) -> Result<(), DriverError> {
+        Err(offline())
+    }
+    fn recover(&mut self, _: &Snapshot) -> Result<Outcome, DriverError> {
+        Err(offline())
+    }
+}
+
 fn offline() -> DriverError {
     DriverError::Unavailable("review mockup".into())
 }
 
 impl Lighting for ReviewDevice {
+    fn apply_settings(
+        &mut self,
+        settings: crate::core::LightingSettings,
+    ) -> Result<Outcome, DriverError> {
+        if !self.confirm_writes {
+            return Err(offline());
+        }
+        let editor = self.programs.as_mut().ok_or_else(offline)?;
+        let preset = editor
+            .presets
+            .iter_mut()
+            .find(|p| p.saved.preset == settings.preset)
+            .ok_or_else(offline)?;
+        preset.saved = settings;
+        editor.current = settings.preset;
+        Ok(Outcome::Confirmed)
+    }
     fn editor(&self) -> Option<crate::core::LightingEditor> {
         self.programs.clone()
     }
@@ -71,6 +110,7 @@ fn device(
     Box::new(ReviewDevice {
         programs: None,
         lighting_available: true,
+        confirm_writes: false,
         descriptor: DeviceDescriptor {
             kind,
             vendor: vendor.map(str::to_owned),
@@ -87,7 +127,19 @@ pub(super) fn native_devices() -> Discovered {
     native_devices_for(0)
 }
 
+pub(super) fn backup_devices() -> Discovered {
+    let mut found = native_devices();
+    found.notes.clear();
+    found
+}
+
 pub(super) fn native_devices_for(current: u8) -> Discovered {
+    native_device(current, false)
+}
+pub(super) fn commit_devices(confirm_writes: bool) -> Discovered {
+    native_device(0, confirm_writes)
+}
+fn native_device(current: u8, confirm_writes: bool) -> Discovered {
     use crate::core::{LightingEditor, LightingEffect as E, LightingPreset, LightingSettings};
     let mut found = devices();
     let descriptor = found.devices[0].descriptor().clone();
@@ -115,6 +167,7 @@ pub(super) fn native_devices_for(current: u8) -> Discovered {
     .into_iter()
     .enumerate()
     .map(|(i, effect)| LightingPreset {
+        device_color: None,
         effect,
         saved: LightingSettings {
             preset: i as u8,
@@ -129,6 +182,7 @@ pub(super) fn native_devices_for(current: u8) -> Discovered {
     .collect();
     found.devices[0] = Box::new(ReviewDevice {
         lighting_available: true,
+        confirm_writes,
         descriptor,
         traits: LightingTraits {
             writable: true,
@@ -154,6 +208,7 @@ pub(super) fn connection_devices(driver: DriverInfo) -> Discovered {
         traits,
         programs: None,
         lighting_available: false,
+        confirm_writes: false,
     });
     found
 }

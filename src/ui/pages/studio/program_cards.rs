@@ -13,7 +13,7 @@ pub(super) fn show(ui: &mut Ui, state: &mut State) {
     };
     let mut selected = programs.selected;
     let mut open = false;
-    let width = ((ui.available_width() - space::M * 2.0) / 3.0).max(size::STUDIO_PANEL * 0.65);
+    let width = ((ui.available_width() - space::M * 2.0) / 3.0).max(size::STUDIO_PROGRAM_CARD);
     let height = ui.available_height() - space::S;
     let chosen = state.palette.colors(1)[0];
     let phase = state.demonstration_phase();
@@ -59,11 +59,19 @@ pub(super) fn show(ui: &mut Ui, state: &mut State) {
                     let mut card = ui.new_child(
                         UiBuilder::new()
                             .id_salt(index)
-                            .max_rect(rect.shrink(space::S)),
+                            .max_rect(rect.shrink(space::S))
+                            .layout(Layout::top_down(Align::Min)),
                     );
                     card.horizontal(|ui| {
-                        if active {
-                            Icon::Success.show(ui, size::ICON_SMALL, color::ACCENT.get());
+                        if preset.effect.key_triggered() {
+                            Icon::Touch
+                                .show(ui, size::ICON_SMALL, color::TEXT_SECONDARY.get())
+                                .on_hover_text(s::LIGHTING_KEY_TRIGGERED);
+                        }
+                        if programs.is_applied(preset.saved.preset) {
+                            Icon::Success
+                                .show(ui, size::ICON_SMALL, color::ACCENT.get())
+                                .on_hover_text(s::LIGHTING_APPLIED);
                         }
                         label(
                             ui,
@@ -84,11 +92,7 @@ pub(super) fn show(ui: &mut Ui, state: &mut State) {
                                 preset.effect,
                                 col as f32 / 13.0,
                                 row as f32 / 3.0,
-                                if active {
-                                    phase * (0.5 + f32::from(preset.saved.speed) * 0.5)
-                                } else {
-                                    0.45
-                                },
+                                if active { phase } else { 0.45 },
                                 0.0,
                                 chosen,
                             );
@@ -121,7 +125,29 @@ pub(super) fn show(ui: &mut Ui, state: &mut State) {
                         selected = index;
                         open = true;
                     }
-                    if response.clicked() {
+                    if !programs.is_applied(preset.saved.preset)
+                        && state.apply.button(
+                            &mut controls,
+                            super::apply::Action::Select,
+                            preset.saved,
+                        )
+                    {
+                        selected = index;
+                    }
+                    let preview_click = card
+                        .interact(
+                            Rect::from_min_max(
+                                rect.min,
+                                pos2(
+                                    rect.right(),
+                                    rect.bottom() - size::CONTROL_HEIGHT - space::S,
+                                ),
+                            ),
+                            response.id.with("preview"),
+                            Sense::click(),
+                        )
+                        .clicked();
+                    if response.clicked() || preview_click {
                         selected = index;
                     }
                 }

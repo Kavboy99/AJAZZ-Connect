@@ -19,6 +19,7 @@ impl Effect {
 }
 
 pub struct Preview {
+    pub hits: HashMap<Key, f32>,
     pub native: Option<crate::core::LightingEffect>,
     pub brightness: f32,
     pub effect: Option<Effect>,
@@ -123,15 +124,32 @@ impl Binding {
                         .unwrap_or(0.0),
                 };
                 let color = preview.colors.first().copied().unwrap_or(Color32::WHITE);
+                let mut persistence = 1.0;
                 let rgb = if let Some(effect) = preview.native {
-                    super::native_effect::sample(
-                        effect,
-                        (index % 14) as f32 / 13.0,
-                        (index / 14) as f32 / 5.0,
-                        preview.phase,
-                        press,
-                        color,
-                    )
+                    if effect.key_triggered() {
+                        let mut strength: f32 = 0.0;
+                        for (source, name) in self.keys.iter().enumerate() {
+                            let Some(age) = Key::from_name(name)
+                                .and_then(|k| preview.hits.get(&k))
+                                .copied()
+                            else {
+                                continue;
+                            };
+                            let light = super::reactive::strength(effect, index, source, age);
+                            strength = strength.max(light);
+                        }
+                        persistence = strength;
+                        color
+                    } else {
+                        super::native_effect::sample(
+                            effect,
+                            (index % 14) as f32 / 13.0,
+                            (index / 14) as f32 / 5.0,
+                            preview.phase,
+                            press,
+                            color,
+                        )
+                    }
                 } else if preview.effect == Some(Effect::Wave) && preview.colors.len() > 1 {
                     let t = (index as f32 / 14.0 - preview.phase).rem_euclid(1.0)
                         * preview.colors.len() as f32;
@@ -141,13 +159,15 @@ impl Binding {
                 } else {
                     color
                 };
+                // Persistence is radiance, not an sRGB color edit: gamma scaling crushed the wake.
                 let strength = preview.brightness
+                    * persistence
                     * if preview.native.is_some() {
-                        2.4
+                        4.0
                     } else {
                         match preview.effect {
-                            Some(Effect::Solid | Effect::Wave) => 2.4 + press * 0.8,
-                            Some(Effect::Reactive) | None => press * 3.2,
+                            Some(Effect::Solid | Effect::Wave) => 4.0 + press * 0.8,
+                            Some(Effect::Reactive) | None => press * 4.8,
                         }
                     };
                 PartEffect {

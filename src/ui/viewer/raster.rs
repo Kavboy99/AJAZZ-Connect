@@ -18,6 +18,8 @@ const SRGB_STEPS: usize = 4096;
 /// How the model is held. Angles in radians; `lift` and `glow` in 0..1.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
+    /// Blend from the inventory rig to the more directional device workspace rig.
+    pub studio: f32,
     pub zoom: f32,
     pub focus: Vec3,
     pub yaw: f32,
@@ -253,6 +255,7 @@ mod tests {
         let bytes = super::super::catalog::model_bytes("ak820-max").unwrap();
         let scene = super::super::glb::parse(bytes).unwrap();
         let pose = Pose {
+            studio: 0.0,
             zoom: 1.0,
             focus: [0.0; 3],
             yaw: -0.35,
@@ -272,6 +275,7 @@ mod tests {
         let mut scene = super::super::glb::parse(bytes).unwrap();
         super::super::led::prepare(&mut scene, "ak820-max");
         let preview = super::super::preview::Preview {
+            hits: Default::default(),
             native: None,
             brightness: 1.0,
             effect: Some(super::super::preview::Effect::Solid),
@@ -284,6 +288,7 @@ mod tests {
             .unwrap()
             .effects(&scene, &preview);
         let pose = Pose {
+            studio: 0.0,
             zoom: 1.0,
             focus: [0.0; 3],
             yaw: 0.0,

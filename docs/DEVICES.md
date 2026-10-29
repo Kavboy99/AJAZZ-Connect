@@ -1,5 +1,88 @@
 # Devices and compatibility
 
+## Lighting follow-up and release delivery, 2026-10-29
+
+The owner clarified that the inverted controls affect the physical keyboard only; the 3D preview
+is correct. They also report action buttons blinking at the five-second battery refresh interval.
+The ordinary `target/release` executable was built at 17:32, before the field and telemetry fixes;
+the prior corrected release was delivered only under `target/panel-review/release` at 18:30.
+This follow-up rebuilds the ordinary release path with the corrected codec. For Breathing (hardware
+id 2), brightness occupies 0x3C and speed the high nibble of 0x3D. Independent-byte regression checks
+cover both id 2 and id 7, including preservation of every unrelated byte and the color slot.
+
+A hardware-free test now renders the complete inspector and cards over three battery transactions:
+the painted shapes are identical before, during and after each read. One Apply click during telemetry
+is retained and dispatched after device release. Progress uses a fixed icon slot and a spring fade,
+and only the clicked action shows progress. The owner clarified that Select must remain on a
+highlighted preview and disappear only for the confirmed hardware mode; the earlier preview-based
+hiding was reverted. Select and Apply use the existing checkmark icon. These tests and the release
+rebuild do not establish a new physical result;
+the owner still needs to compare brightness and speed using the updated ordinary release.
+
+## Owner-confirmed lighting field correction, 2026-10-29
+
+Full independent re-audit: [Lighting protocol and color audit](LIGHTING-PROTOCOL-COLOR-AUDIT-2026-10-29.md). A fresh download reproduced the pinned executable hash; 19 static instruction anchors passed. Existing snapshots confirm intermediate RGB storage. Neither memory read-back nor the revised HSV conversion proves the optical transfer function or PWM depth.
+
+The owner reports that the Brightness control changed animation speed. Static reinspection of the
+same vendor executable confirms the inversion in our former decoder/writer. Each effect pair at
+`0x38 + 2 * hardware_id` is `[brightness, (speed << 4) | color_slot]`, not the former opposite
+interpretation. `SpeedHW` is loaded into the table at object offset `2E50` (xref `410CE6`),
+and `LightHW` into `2E70` (xref `410E00`). The writer at `48CE9C..48CEC4` stores the
+LightHW value in the first byte and shifts the SpeedHW value into the second byte's high nibble.
+The owner observation confirms the distinction physically; the new build still needs an owner
+comparison. Native metadata, configuration validation, writes and passive report fields now agree.
+Historical brightness/speed labels in old reports and notes were decoded in reverse and must not be
+used as an independent protocol oracle. Regression tests assert the individual changed offsets and
+preservation of the other field and color slot, rather than only encode/decode round-trips.
+
+The vendor copies arbitrary RGB channel bytes into the palette (`48D780..48D7B4`); static evidence
+does not establish a restriction to white and saturated colors. The picker formerly gamma-encoded
+HSV output: 50% cyan saturation produced 188/255/255 instead of the numeric-channel 128/255/255.
+The wheel, swatch and transmitted RGB now use the same direct channel conversion without that extra
+encoding. Actual LED transfer response and optical color matching remain unmeasured. Saturation
+and white at 0% remain available; do not claim a firmware quantization limit from washed-out output.
+
+## Current manual lighting verification, 2026-10-29
+
+The owner states that the input-loss bug has been corrected and explicitly requests removing the
+blanket write block so hardware testing can continue. Manual lighting commits are enabled for the
+identified tri-mode password/release 03000000015e-0100 with valid cached configuration and palette.
+Discovery, card selection and sliders remain read-only/local preview; only Select or Apply starts a
+transaction. This authorization supersedes the ordinary-apply quarantine described in the historical
+incident entries below. Firmware/reset/calibration and automatic persistent writes remain absent.
+
+Each explicit commit rechecks the family password and reads fresh blocks, validates the draft and
+stores both original blocks before any write. Changed palette bytes are written and read back first;
+only then may the configuration be selected, after checking that it has not changed concurrently.
+Each written block gets 500 ms before read-back; final palette validation catches cross-block changes.
+There is no retry or automatic rollback. The cached applied mode changes only on full success.
+The new path has synthetic failure/backup/identity/framing tests; this change itself does not claim a
+new physical-device verification. The delay is a conservative implementation choice, not a measured
+firmware guarantee. Independent Settings backup/recovery remains available; ordinary lighting restore
+is not exposed. Historical evidence and the recovered input state are retained below.
+
+## Historical safety incident: mechanical GPWB2401, 2026-10-29
+
+The owner reported complete loss of key input during lighting editing. Disconnecting and reconnecting
+did not restore input; illumination and the encoder still work, but key-based lighting controls do not.
+A read-only USB probe still confirms `258A:010C`, release `0100`, password `03000000015e`.
+The returned 128-byte configuration fails validation: effect byte `0x0A` is `FF`, and several
+speed/brightness fields are invalid. Forty-five bytes differ from the latest pre-incident backup.
+The configuration contains RGB-like bytes in unrelated fields; the exact corruption mechanism is
+not established. Do not infer a firmware erase or hardware failure from this observation.
+
+Both pre-incident backups are retained locally. At incident containment, all application BY Tech lighting writes, including
+restore, were quarantined before any exchange. Manual Apply is now re-enabled under the current authorization above. The native preview remains available. Persistent
+capabilities cannot enter the automatic edit queue; other persistent drivers require explicit Apply.
+This supersedes the live persistent-write behavior described in the historical entries below.
+
+A separate local Rust recovery tool is prepared under ignored `research/drv-audit/input-recovery/`.
+It defaults to an offline plan; the write option requires explicit owner authorization and a direct Yes button press in a native confirmation dialog. It verifies
+the original hashed endpoint identity, exact descriptor, release, password and diagnosed damaged block,
+then saves that block and can send one `0x04` configuration write from the earliest original backup.
+It never writes the palette, key matrix, firmware, reset or bootloader. Read-back is mandatory and
+there is no retry. The recovery was subsequently executed with a direct owner confirmation; see the recovery result below.
+
 A registry of explicitly supported devices and hardware revisions, their direct protocol adapters and verification evidence. Current development targets are the two keyboards below. Update this file after every new verification. Statuses: `identified` → `read` → `written by owner` → `confirmed`. Anything not verified
 on the device is marked as an inference, not as a fact.
 
@@ -76,7 +159,7 @@ Addresses below are virtual addresses in that file, so the analysis can be repea
 | Read = Set Feature with the request, 20 ms, Get Feature; data from byte 8; the vendor checks neither echo nor checksum (the keyboard does echo the header, see below) | `0x48B3E0`–`0x48B4E0` |
 | Family check: request `0x82`, sub 1, 6 bytes; the reply must equal `Psd` byte for byte, else the handle is closed | `GetPassword` `0x48BC10`, compare at `0x48A987` |
 | `0x04` / `0x84`: 128-byte configuration block; the vendor itself reads it, changes bytes and writes it back | `0x48A140` (`GetLED` → `[9]=0`, `[0x0A]=effect` → `SetLED`) |
-| Block fields: `[0x09]` game-mode flag, `[0x0A]` effect id, from `0x38` two bytes per effect id: speed, `brightness << 4 \| color slot` (slot 7 = random) | `0x48CE20`–`0x48CEDB` |
+| Block fields: `[0x09]` game-mode flag, `[0x0A]` effect id, from `0x38` two bytes per effect id: brightness, `speed << 4 \| color slot` (slot 7 = random) | `0x48CE20`–`0x48CEDB` |
 | `0x0A` / `0x8A`: color table, 21 bytes (7 RGB slots) per effect id from id 1; with `CRC=1` padded to 512 bytes and marked `5A A5` at `0x1FA` | `0x48D759`–`0x48D9C5` |
 | Other commands (`0x03` key matrix, `0x05` macros, `0x06` game, `0x0B` screen, `0x08`, `0x0E`) exist and are **not** used | vtable at file offset `0x20E1DC` |
 
@@ -112,6 +195,16 @@ an explicit USB/wired-mode requirement and disabled Apply. A passive local probe
 receiver-only connection when the missing-controls issue was reproduced. Preview metadata never
 performs discovery or changes wireless admission or write support.
 
+2026-10-29: The owner connected the tri-mode board by USB and confirmed hardware effect 7 reacts
+only to key presses. Read-only configuration/color reads were originally labeled speed 4, brightness 1; the corrected decoding is brightness 4, speed 1, slot 6
+(white), with the standard seven-color RGB palette. `--probe` now reports all saved program settings
+and palettes after the known password check. Device palette display data is cached alongside the
+configuration; opening a color picker no longer turns a displayed device color into a write request.
+The known protocol returns settings, not animation frames or firmware algorithms. Existing preview
+formulas remain illustrative; this read must not be presented as exact verification of every mode.
+Static analysis of `OemDrv.exe` (never executed) located LedOpt parsing at 0x40FA30..0x40FB42 and
+localized keyboard lighting labels at 0x42D420..0x42D4CE; it did not establish all animation timing.
+
 **Still unknown** (to be closed by the owner's verification):
 - Whether the firmware echoes exactly what was written (the read-back compares whole blocks).
 - Whether the flash write of these blocks has a wear limit worth tracking (writes happen only per
@@ -123,8 +216,8 @@ performs discovery or changes wireless admission or write support.
 - Password `03 00 00 00 01 5E`: the tri-mode board, as the keyboard's three connection modes suggest.
 - The configuration block matches the layout above byte for byte where the analysis predicted it:
   `[0x09] = 00`, `[0x0A] = 07` (effect 7, "Ripples shining", was active), `[0x0B] = 20` (`StartGp`),
-  `[0x38..0x39] = FF FF`, and from `0x3A` pairs such as `04 37` (speed 4, brightness 3, slot 7 =
-  random) with every brightness in 1..4 and every slot in 4..7. The block also ends with `5A A5`
+  `[0x38..0x39] = FF FF`, and from `0x3A` pairs such as `04 37` (brightness 4, speed 3, slot 7 =
+  random) with every packed speed in 1..4 and every slot in 4..7. The block also ends with `5A A5`
   (`0x7E`). The driver accepted it as valid.
 
 Verification still to do by the owner: with experimental drivers on, one "Apply" and one "Restore" on
@@ -485,3 +578,32 @@ staggered restoration, one in-flight job, retained sample freshness and progress
 after a failed read. Fmt, clippy with warnings denied, release build and standard `--review` passed.
 The settings selector was visually inspected at 720, 1040 and 1600 px. These checks do not constitute
 a physical multi-device power benchmark or a native tray integration test.
+
+### Owner observations, 2026-10-29
+
+Owner describes Flash as a key-triggered bidirectional row pulse; Ripples originate at the pressed key. Rainbow cycles all hues together; Neon moves a dark gap left to right; Sine oscillates vertically without horizontal travel; Waterfall changes rows from top to bottom. Windmill resembles RainbowWheel. Fade, Scan and Storm appear unlit. Rain, Stars and Snake previews were about five times too fast. These observations guide previews, not measured firmware timing. No hardware write was performed for this change.
+
+### Live lighting editing, owner request 2026-10-29
+
+The owner explicitly requested immediate hardware application of mode, color, brightness and speed edits. The application now uses the existing backed-up configuration write/read-back path and coalesces edits with a 200 ms minimum dispatch interval. This is not a newly verified volatile command: persistence and memory endurance remain unchanged/unknown. No firmware, erase, reset, calibration or bootloader command is introduced. Speed byte 0 is preserved and means very slow; it is not Off. Hardware-free queue tests cover busy exchanges, final-value delivery and no retry after failure. Physical behavior of this UI path still needs owner comparison.
+
+
+### Recovery preparation after vendor reset (2026-10-29)
+
+The owner reported running the official driver's reset themselves. It changed illumination but did not restore keys; encoder rotation still works and Fn in radio mode lights R. A new read-only USB probe confirms the same identity. Lighting fields now parse (effect 11), while 53 configuration bytes differ from the earliest original backup, including unrelated fields. The standalone tool was rebuilt against this exact current block. Its fixed-packet test, clippy and build passed. Noninteractive execution was rejected by automatic approval review before launch. The revised tool requires the owner's direct Yes button press, then rechecks identity/current configuration before one original-config write and mandatory read-back. Physical recovery is pending.
+
+
+### Owner-confirmed input recovery (2026-10-29)
+
+After the owner explicitly requested backup recovery and pressed Yes in the native confirmation dialog, the standalone tool revalidated identity and the exact post-vendor-reset configuration. It preserved the damaged block, sent one 128-byte original-configuration write (command 0x04), waited 500 ms and read back the complete original block byte for byte. The owner then confirmed that the keyboard keys work again. No palette, key-matrix, firmware, bootloader or reset command was issued by this recovery. A later optional diagnostic did not obtain a wired identification and supplies no additional verification; the successful immediate read-back and owner's physical check are the recovery evidence.
+
+Restoring the original configuration recovered key input; this establishes that the configuration state was relevant to the failure. It does not identify the precise write/framing/timing or firmware mechanism that damaged it. At that stage ordinary BY Tech writes and restore remained quarantined; recovery success alone was not used to enable them. Manual Apply is subsequently enabled by the explicit owner authorization documented at the top of this file. Original backups and local before/after recovery blocks are retained in ignored research storage. The subsequent reviewed explicit commit path and owner-controlled verification procedure are described at the top of this file.
+
+
+### Reusable backup tooling and containment (2026-10-29)
+
+ConfigurationBackup is now separate from Lighting in both applications. Wired BY Tech snapshots preserve the entire known 128-byte system block and 512-byte palette; this is not a full key-map/macro/display or firmware dump. The owner's exact tri-mode password/release and descriptor can recover only the system block, following the already owner-confirmed recovery procedure. Current blocks are saved before one write and full read-back follows after 500 ms. Damaged configuration no longer removes a correctly identified device from recovery discovery. Ordinary lighting writes are rejected and the palette packet builder refuses all writes. All read headers are checked in full.
+
+AA55 separately captures and restores its known lighting block with its own identity, backup and verification checks; this new feature was not physically exercised on the co-author's keyboard. Radio and unsupported protocols expose no settings backup capability. Every archive remains bound to the original hashed endpoint/protocol. Reusable toolbar/standalone UI tests use synthetic devices; no new overnight hardware write is claimed. The earlier owner-confirmed single-block recovery remains the hardware evidence. Detailed incident analysis: INPUT-LOSS-2026-10-29.md.
+
+Both applications now offer opt-in, rotating diagnostic logs without raw packets or private identifiers. Enabling logging is independent of enabling experimental device support and does not grant permission to write.

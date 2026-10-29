@@ -14,7 +14,7 @@ pub(super) struct Attachments {
     depth: wgpu::TextureView,
     shadow: wgpu::TextureView,
     bloom: [wgpu::TextureView; 2],
-    blur_groups: [wgpu::BindGroup; 2],
+    blur_groups: [wgpu::BindGroup; 3],
     post: wgpu::BindGroup,
 }
 fn view(
@@ -147,7 +147,11 @@ impl Attachments {
                 ],
             })
         };
-        let blur_groups = [blur_group(&color[1]), blur_group(&bloom[0])];
+        let blur_groups = [
+            blur_group(&color[1]),
+            blur_group(&bloom[0]),
+            blur_group(&bloom[1]),
+        ];
         let post = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("tone map bindings"),
             layout: &p.post,
@@ -162,7 +166,7 @@ impl Attachments {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&bloom[1]),
+                    resource: wgpu::BindingResource::TextureView(&bloom[0]),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,

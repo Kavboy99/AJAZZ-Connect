@@ -1,8 +1,6 @@
 //! `KB.ini` LedOpt1..19, LightHW and SpeedHW from the Wired/Thr vendor profiles.
 use super::state::{ColorTable, Config};
-use crate::core::{
-    DriverError, LightingEditor, LightingEffect as E, LightingPreset, LightingSettings,
-};
+use crate::core::{LightingEditor, LightingEffect as E, LightingPreset, LightingSettings};
 
 const EFFECTS: [E; 19] = [
     E::Solid,
@@ -26,11 +24,20 @@ const EFFECTS: [E; 19] = [
     E::Off,
 ];
 
-pub(super) fn editor(config: &Config) -> LightingEditor {
-    catalog(config.effect(), |id| {
+pub(super) fn editor(config: &Config, colors: &ColorTable) -> LightingEditor {
+    let mut editor = catalog(config.effect(), |id| {
         let (speed, brightness, _) = config.settings(id);
         (speed, brightness)
-    })
+    });
+    for preset in &mut editor.presets {
+        let (_, _, slot) = config.settings(preset.saved.preset);
+        if slot < 7 {
+            let at = usize::from(preset.saved.preset) * 21 + usize::from(slot) * 3;
+            let rgb = colors.bytes();
+            preset.device_color = Some(crate::core::Rgb::new(rgb[at], rgb[at + 1], rgb[at + 2]));
+        }
+    }
+    editor
 }
 
 pub(super) fn preview() -> crate::core::LightingPreview {
@@ -54,6 +61,7 @@ fn catalog(current: u8, settings: impl Fn(u8) -> (u8, u8)) -> LightingEditor {
                 };
                 let (speed, brightness) = settings(id);
                 LightingPreset {
+                    device_color: None,
                     effect,
                     saved: LightingSettings {
                         preset: id,
@@ -73,19 +81,21 @@ fn catalog(current: u8, settings: impl Fn(u8) -> (u8, u8)) -> LightingEditor {
 pub(super) fn target(
     current: &(Config, ColorTable),
     settings: LightingSettings,
-) -> Result<(Config, ColorTable), DriverError> {
-    let preset = editor(&current.0)
+) -> Result<(Config, ColorTable), crate::core::DriverError> {
+    let preset = editor(&current.0, &current.1)
         .presets
         .into_iter()
         .find(|p| p.saved.preset == settings.preset)
-        .ok_or_else(|| DriverError::rejected("unknown lighting preset"))?;
+        .ok_or_else(|| crate::core::DriverError::rejected("unknown lighting preset"))?;
     if preset
         .brightness_max
         .is_some_and(|max| settings.brightness > max)
         || preset.speed_max.is_some_and(|max| settings.speed > max)
         || (settings.color.is_some() && !preset.custom_color)
     {
-        return Err(DriverError::rejected("unsupported lighting setting"));
+        return Err(crate::core::DriverError::rejected(
+            "unsupported lighting setting",
+        ));
     }
     let config = current.0.with_program(
         settings,

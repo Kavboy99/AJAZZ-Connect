@@ -4,7 +4,7 @@
 #[cfg(feature = "driver-by-tech")]
 pub mod by_tech;
 #[cfg(test)]
-mod fake_bus;
+pub(crate) mod fake_bus;
 #[cfg(feature = "driver-hid-lamparray")]
 pub mod hid_lamparray;
 #[cfg(feature = "driver-openrgb")]

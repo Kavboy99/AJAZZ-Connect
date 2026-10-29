@@ -6,9 +6,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 const SEMIBOLD: &str = "semibold";
+const LIGHT: &str = "light";
 
 pub fn semibold() -> FontFamily {
     FontFamily::Name(SEMIBOLD.into())
+}
+
+pub fn light() -> FontFamily {
+    FontFamily::Name(LIGHT.into())
 }
 
 fn system_font(file: &str) -> Option<Arc<FontData>> {
@@ -25,9 +30,11 @@ pub fn install(ctx: &Context) {
         .get(&FontFamily::Proportional)
         .cloned()
         .unwrap_or_default();
+    let mut light_fonts = semibold_fonts.clone();
     for (name, file, family) in [
         ("segoe-ui", "segoeui.ttf", FontFamily::Proportional),
         ("segoe-ui-semibold", "seguisb.ttf", semibold()),
+        ("segoe-ui-light", "segoeuil.ttf", light()),
         ("cascadia-mono", "CascadiaMono.ttf", FontFamily::Monospace),
     ] {
         let Some(data) = system_font(file) else {
@@ -36,6 +43,8 @@ pub fn install(ctx: &Context) {
         fonts.font_data.insert(name.into(), data);
         if family == semibold() {
             semibold_fonts.insert(0, name.into());
+        } else if family == light() {
+            light_fonts.insert(0, name.into());
         } else {
             fonts
                 .families
@@ -45,5 +54,6 @@ pub fn install(ctx: &Context) {
         }
     }
     fonts.families.insert(semibold(), semibold_fonts);
+    fonts.families.insert(light(), light_fonts);
     ctx.set_fonts(fonts);
 }

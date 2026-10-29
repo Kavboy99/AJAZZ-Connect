@@ -2,6 +2,8 @@
 //! `core::Bus`, implemented here by `SystemBus`.
 
 #[cfg(windows)]
+pub(crate) mod acrylic;
+#[cfg(windows)]
 mod hid;
 #[cfg(windows)]
 mod hid_caps;

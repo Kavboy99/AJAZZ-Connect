@@ -108,9 +108,7 @@ pub fn reply(report: &[u8], command: Command) -> Result<&[u8], DriverError> {
         && report.len() <= REPORT_BYTES
         && report[0] == REPORT_ID
         && report[1] == command.opcode();
-    let framed = framed
-        && (command != Command::ReadPower
-            || report[..HEADER_BYTES] == header(command)[..HEADER_BYTES]);
+    let framed = framed && report[..HEADER_BYTES] == header(command)[..HEADER_BYTES];
     if !framed {
         // The size and the first bytes go to the diagnostic report: they show what the frame was.
         return Err(DriverError::protocol(format!(

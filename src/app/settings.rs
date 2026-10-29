@@ -27,8 +27,13 @@ impl Theme {
 pub struct Settings {
     /// Drivers implemented from descriptions and not verified on a device take part in search.
     pub experimental_drivers: bool,
+    #[serde(skip)]
+    pub ephemeral: bool,
+    pub lighting: std::collections::BTreeMap<String, Vec<crate::core::LightingSettings>>,
+    pub lighting_selected: std::collections::BTreeMap<String, u8>,
     pub theme: Theme,
     pub developer_mode: bool,
+    pub logging_enabled: bool,
     pub show_all_devices: bool,
     pub battery_mode: super::battery::BatteryMode,
 }
@@ -47,9 +52,29 @@ impl Settings {
     }
 
     pub fn save(&self) -> std::io::Result<()> {
+        if self.ephemeral {
+            return Ok(());
+        }
         let path = path().ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::NotFound, "LOCALAPPDATA is not set")
         })?;
         atomic::write_json(&path, self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn logging_is_opt_in_and_survives_settings_serialization() -> Result<(), serde_json::Error> {
+        let old: Settings = serde_json::from_str(r#"{"developer_mode":true}"#)?;
+        assert!(!old.logging_enabled);
+        let configured = Settings {
+            logging_enabled: true,
+            ..old
+        };
+        let loaded: Settings = serde_json::from_slice(&serde_json::to_vec(&configured)?)?;
+        assert!(loaded.logging_enabled);
+        Ok(())
     }
 }

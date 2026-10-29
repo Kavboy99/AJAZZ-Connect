@@ -58,6 +58,7 @@ pub mod color {
     pub const CONTROL_FILL_HOVER: Token = Token::new(0x3A3A3A, 0xF6F6F6);
     pub const CONTROL_FILL_PRESSED: Token = Token::new(0x2F2F2F, 0xF0F0F0);
     pub const CONTROL_FILL_DISABLED: Token = Token::new(0x2A2A2A, 0xF5F5F5);
+    pub const SLIDER_CENTER: Token = Token::new(0x343434, 0x343434);
 
     pub const STROKE_SUBTLE: Token = Token::new(0x363636, 0xE5E5E5);
     pub const STROKE_DEFAULT: Token = Token::new(0x404040, 0xD1D1D1);
@@ -77,6 +78,7 @@ pub mod color {
 
     pub const STATUS_SUCCESS: Token = Token::new(0x6CCB5F, 0x0F7B0F);
     pub const STATUS_CAUTION: Token = Token::new(0xE0B84A, 0x8F5500);
+    pub const STATUS_EXPERIMENTAL: Token = Token::new(0xFFA64D, 0x9C4800);
     pub const STATUS_CRITICAL: Token = Token::new(0xE8808A, 0xC42B1C);
     pub const STATUS_INFO: Token = ACCENT;
 
@@ -84,6 +86,14 @@ pub mod color {
     pub const DEVICE_GLOW: Token = Token::new(0x4DB2E8, 0x62BDEC);
     /// The soft contact shadow under a device model.
     pub const DEVICE_SHADOW: Token = Token::new(0x0E0E0E, 0x8C8C8C);
+}
+
+/// Relative stage geometry follows the animated model, including contextual zoom.
+pub mod device_stage {
+    pub const SHADOW_OFFSET: f32 = 0.13;
+    pub const SHADOW_WIDTH: f32 = 0.46;
+    pub const SHADOW_HEIGHT: f32 = 0.18;
+    pub const SHADOW_ALPHA: f32 = 0.65;
 }
 
 /// The 4 px grid. 48 joins when a layout needs it.
@@ -116,10 +126,21 @@ pub mod size {
     pub const DEVICE_TILE_MIN: f32 = 224.0;
     pub const DEVICE_HERO_HEIGHT: f32 = 320.0;
     pub const STUDIO_PANEL: f32 = 300.0;
+    pub const DEVICE_ACTION_MIN: f32 = 112.0;
+    pub const DEVICE_ACTION_MAX: f32 = 144.0;
+    pub const DEVICE_ACTION_ICON: f32 = 40.0;
+    /// Fits both actions, including their fixed progress icon slots, at the narrowest width.
+    pub const STUDIO_PROGRAM_CARD: f32 = 252.0;
     pub const STUDIO_ISLAND: f32 = 220.0;
     pub const STUDIO_ISLAND_COMPACT: f32 = 184.0;
     pub const HUE_WHEEL: f32 = 280.0;
     pub const HUE_RING: f32 = 20.0;
+    pub const LIGHTING_CONTROLS: f32 = 192.0;
+    pub const LIGHTING_LABEL: f32 = 88.0;
+    pub const LIGHTING_VALUE: f32 = 44.0;
+    pub const LIGHTING_ROW: f32 = 24.0;
+    pub const LIGHTING_RAIL: f32 = 4.0;
+    pub const LIGHTING_THUMB: f32 = 6.0;
     pub const STUDIO_SHORT_HEIGHT: f32 = 620.0;
 }
 
@@ -206,6 +227,8 @@ mod tests {
             (ACCENT, SURFACE_CARD, text),
             (STATUS_SUCCESS, SURFACE_CARD, text),
             (STATUS_CAUTION, SURFACE_CARD, text),
+            (STATUS_EXPERIMENTAL, SURFACE_BASE, text),
+            (STATUS_EXPERIMENTAL, SURFACE_CARD, text),
             (STATUS_CRITICAL, SURFACE_CARD, text),
             (STATUS_SUCCESS, SURFACE_SUNKEN, text),
             (STATUS_CAUTION, SURFACE_SUNKEN, text),

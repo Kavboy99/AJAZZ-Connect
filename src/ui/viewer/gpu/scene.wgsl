@@ -72,20 +72,23 @@ struct Output { @location(0) color: vec4<f32>, @location(1) emission: vec4<f32>,
     let n = normalize(v.normal);
     let eye = normalize(g.camera.xyz - v.world);
     let mask = textureSample(legend_map, surface_sampler, v.uv).r * v.metadata.x;
-    let illuminated = select(0.0,1.0,max(max(v.emission.r,v.emission.g),v.emission.b)>0.01);
+    let illuminated = smoothstep(0.0,0.4,max(max(v.emission.r,v.emission.g),v.emission.b));
     let base = texel.rgb * material.base.rgb * (1.0 - mask * illuminated * 0.9);
     let roughness = max(material.properties.y,0.14);
     let metallic = material.properties.x;
     let shadow = visibility(v.light_position,n);
-    let key = brdf(base,metallic,roughness,n,eye,normalize(g.light.xyz))*vec3<f32>(2.9,2.8,2.65)*shadow;
-    let fill = brdf(base,metallic,roughness,n,eye,normalize(vec3<f32>(0.7,0.35,0.55)))*vec3<f32>(0.25,0.34,0.5);
+    let studio = g.light.w;
+    let key = brdf(base,metallic,roughness,n,eye,normalize(g.light.xyz))*vec3<f32>(2.9,2.8,2.65)*mix(1.0,0.68,studio)*shadow;
+    let fill = brdf(base,metallic,roughness,n,eye,normalize(vec3<f32>(0.7,0.35,0.55)))*vec3<f32>(0.25,0.34,0.5)*mix(1.0,0.5,studio);
     let hemisphere = mix(vec3<f32>(0.025,0.022,0.018),vec3<f32>(0.19,0.22,0.28),clamp(n.y*0.5+0.5,0.0,1.0));
     let reflection = reflect(-eye,n);
     let softbox = pow(max(dot(reflection,normalize(vec3<f32>(-0.35,0.7,0.8))),0.0),20.0);
     let environment = fresnel(max(dot(n,eye),0.0),mix(vec3<f32>(0.04),base,metallic))*(vec3<f32>(0.12)+softbox*2.0)*(1.0-roughness*0.55);
-    let source = v.emission * (mask*0.6 + v.metadata.z*0.48);
-    let spill = base*v.spill*0.42;
-    let color = key + fill + base*hemisphere + environment + spill + source;
+    // Only apertures and under-cap sockets emit; opaque plastic reflects local spill.
+    let source = v.emission * (mask*1.25 + v.metadata.z*1.5);
+    let spill = base*v.spill*0.65;
+    let color = key + fill + base*hemisphere*mix(1.0,0.5,studio)
+        + environment*mix(1.0,0.65,studio) + spill + source;
     var out: Output;
     out.color = vec4<f32>(color*alpha,alpha);
     out.emission = vec4<f32>(source*alpha,alpha);

@@ -14,7 +14,7 @@ const EFFECT: usize = 0x0a;
 const LAST_EFFECT: u8 = 21;
 /// `LedOpt1 = 1,...`: "Fixed_on", one color for every key.
 const STATIC_EFFECT: u8 = 1;
-/// Per-effect settings start at 0x38: `[speed, brightness << 4 | color slot]` per effect id.
+/// Per-effect settings start at 0x38: `[brightness, speed << 4 | color slot]` per effect id.
 const SETTINGS: usize = 0x38;
 /// `LightHW = 0,1,2,3,4`.
 const MAX_BRIGHTNESS: u8 = 4;
@@ -61,13 +61,13 @@ impl Config {
     }
 
     fn static_settings(&self) -> (u8, u8) {
-        let packed = self.0[SETTINGS + 2 * usize::from(STATIC_EFFECT) + 1];
-        (packed >> 4, packed & 0x0f)
+        let at = SETTINGS + 2 * usize::from(STATIC_EFFECT);
+        (self.0[at], self.0[at + 1] & 0x0f)
     }
 
     pub(super) fn settings(&self, effect: u8) -> (u8, u8, u8) {
         let at = SETTINGS + 2 * usize::from(effect);
-        (self.0[at], self.0[at + 1] >> 4, self.0[at + 1] & 0x0f)
+        (self.0[at + 1] >> 4, self.0[at], self.0[at + 1] & 0x0f)
     }
 
     pub(super) fn with_program(
@@ -80,11 +80,11 @@ impl Config {
         block[GAME_MODE] = 0;
         block[EFFECT] = s.preset;
         let at = SETTINGS + 2 * usize::from(s.preset);
-        if speed {
-            block[at] = s.speed;
-        }
         if brightness {
-            block[at + 1] = s.brightness << 4 | (block[at + 1] & 0x0f);
+            block[at] = s.brightness;
+        }
+        if speed {
+            block[at + 1] = s.speed << 4 | (block[at + 1] & 0x0f);
         }
         if s.color.is_some() {
             block[at + 1] &= 0xf0;
@@ -104,7 +104,9 @@ impl Config {
         };
         block[GAME_MODE] = 0;
         block[EFFECT] = STATIC_EFFECT;
-        block[SETTINGS + 2 * usize::from(STATIC_EFFECT) + 1] = brightness << 4 | STATIC_SLOT;
+        let at = SETTINGS + 2 * usize::from(STATIC_EFFECT);
+        block[at] = brightness;
+        block[at + 1] = (block[at + 1] & 0xf0) | STATIC_SLOT;
         Self(block)
     }
 }

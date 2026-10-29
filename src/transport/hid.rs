@@ -2,6 +2,7 @@
 
 use super::hid_caps;
 use crate::core::{DriverError, Endpoint, HidChannel};
+use crate::diagnostics::logging;
 use std::ffi::CString;
 
 pub(super) struct HidHost {
@@ -10,7 +11,7 @@ pub(super) struct HidHost {
 
 impl HidHost {
     pub(super) fn enumerate() -> Result<(Self, Vec<Endpoint>), DriverError> {
-        let api = hidapi::HidApi::new().map_err(io)?;
+        let api = logging::io("hid.enumerate", 0, || hidapi::HidApi::new().map_err(io))?;
         let endpoints = api
             .device_list()
             .map(|info| {
@@ -34,7 +35,7 @@ impl HidHost {
     pub(super) fn open(&self, endpoint: &Endpoint) -> Result<Box<dyn HidChannel>, DriverError> {
         let path = CString::new(endpoint.path())
             .map_err(|_| DriverError::Io("device path contains NUL".into()))?;
-        let device = self.api.open_path(&path).map_err(io)?;
+        let device = logging::io("hid.open", 0, || self.api.open_path(&path).map_err(io))?;
         Ok(Box::new(Channel(device)))
     }
 }
@@ -43,23 +44,31 @@ struct Channel(hidapi::HidDevice);
 
 impl HidChannel for Channel {
     fn write(&self, data: &[u8]) -> Result<usize, DriverError> {
-        self.0.write(data).map_err(io)
+        logging::io("hid.output", data.len(), || self.0.write(data).map_err(io))
     }
 
     fn read_timeout(&self, buffer: &mut [u8], milliseconds: i32) -> Result<usize, DriverError> {
-        self.0.read_timeout(buffer, milliseconds).map_err(io)
+        logging::io("hid.input", buffer.len(), || {
+            self.0.read_timeout(buffer, milliseconds).map_err(io)
+        })
     }
 
     fn send_feature(&self, data: &[u8]) -> Result<(), DriverError> {
-        self.0.send_feature_report(data).map_err(io)
+        logging::io("hid.set_feature", data.len(), || {
+            self.0.send_feature_report(data).map_err(io)
+        })
     }
 
     fn get_feature(&self, buffer: &mut [u8]) -> Result<usize, DriverError> {
-        self.0.get_feature_report(buffer).map_err(io)
+        logging::io("hid.get_feature", buffer.len(), || {
+            self.0.get_feature_report(buffer).map_err(io)
+        })
     }
 
     fn report_descriptor(&self, buffer: &mut [u8]) -> Result<usize, DriverError> {
-        self.0.get_report_descriptor(buffer).map_err(io)
+        logging::io("hid.descriptor", buffer.len(), || {
+            self.0.get_report_descriptor(buffer).map_err(io)
+        })
     }
 
     fn container_id(&self) -> Result<u128, DriverError> {

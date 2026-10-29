@@ -1,32 +1,30 @@
-//! Analytic, DPI-aware coverage. The spectrum is immutable while a marker is dragged.
+//! Analytic, DPI-aware coverage. The spectrum is cached until geometry or saturation changes.
 use eframe::egui::{Color32, ColorImage, Id, Rect, TextureHandle, TextureOptions, Ui, pos2};
 use std::f32::consts::TAU;
 
 #[derive(Clone)]
 struct Cached {
-    key: [u32; 3],
+    key: [u32; 4],
     texture: TextureHandle,
 }
 
-pub(super) fn show(
-    ui: &Ui,
-    id: Id,
-    rect: Rect,
-    count: usize,
-    outer: f32,
-    thickness: f32,
-    stride: f32,
-) {
+pub(super) fn show(ui: &Ui, id: Id, rect: Rect, count: usize, geometry: [f32; 3], saturation: f32) {
+    let [outer, thickness, stride] = geometry;
     let density = ui.ctx().pixels_per_point().max(2.0);
     let side = (rect.width() * density).ceil() as usize;
-    let key = [side as u32, count as u32, (density * 100.0).round() as u32];
+    let key = [
+        side as u32,
+        count as u32,
+        (density * 100.0).round() as u32,
+        saturation.to_bits(),
+    ];
     let previous = ui.ctx().data(|d| d.get_temp::<Cached>(id));
     let texture = if let Some(cached) = previous.filter(|c| c.key == key) {
         cached.texture
     } else {
         let texture = ui.ctx().load_texture(
             "antialiased hue rings",
-            raster(side, density, count, outer, thickness, stride),
+            raster(side, density, count, [outer, thickness, stride], saturation),
             TextureOptions::LINEAR,
         );
         ui.ctx().data_mut(|d| {
@@ -52,10 +50,10 @@ fn raster(
     side: usize,
     density: f32,
     count: usize,
-    outer: f32,
-    thickness: f32,
-    stride: f32,
+    geometry: [f32; 3],
+    saturation: f32,
 ) -> ColorImage {
+    let [outer, thickness, stride] = geometry;
     let mut pixels = vec![Color32::TRANSPARENT; side * side];
     for y in 0..side {
         for x in 0..side {
@@ -70,7 +68,7 @@ fn raster(
                 .fold(0.0_f32, f32::max);
             if coverage > 0.0 {
                 let hue = (dy.atan2(dx) / TAU).rem_euclid(1.0);
-                let c: Color32 = eframe::egui::ecolor::Hsva::new(hue, 1.0, 1.0, 1.0).into();
+                let c = super::led_color::color(hue, saturation);
                 pixels[y * side + x] = Color32::from_rgba_unmultiplied(
                     c.r(),
                     c.g(),
@@ -87,8 +85,19 @@ fn raster(
 mod tests {
     use super::*;
     #[test]
+    fn saturation_changes_the_spectrum_without_dimming_it() {
+        for saturation in [0.0, 0.35, 1.0] {
+            let image = raster(160, 2.0, 1, [36.0, 8.0, 12.0], saturation);
+            let actual = image.pixels[80 * 160 + 144];
+            let hue = (0.5_f32.atan2(64.5) / TAU).rem_euclid(1.0);
+            let expected = super::super::led_color::color(hue, saturation);
+            assert_eq!(actual, expected);
+            assert_eq!(actual.r().max(actual.g()).max(actual.b()), 255);
+        }
+    }
+    #[test]
     fn ring_has_subpixel_edges_and_a_transparent_center() {
-        let image = raster(560, 2.0, 3, 132.0, 20.0, 28.0);
+        let image = raster(560, 2.0, 3, [132.0, 20.0, 28.0], 1.0);
         assert_eq!(image.pixels[280 * 560 + 280], Color32::TRANSPARENT);
         assert!(image.pixels.iter().any(|c| c.a() > 0 && c.a() < 255));
         assert!(image.pixels.iter().any(|c| c.a() == 255));
