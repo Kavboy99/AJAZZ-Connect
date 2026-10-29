@@ -247,7 +247,7 @@ pub fn devices() -> Discovered {
             device(
                 DeviceKind::Keyboard,
                 Some("Vendor"),
-                "Keyboard (mockup)",
+                "AK820 MAX Ultra (mockup)",
                 driver("sonix_aa55", "SONiX AA55", Maturity::Stable),
                 vec![
                     Detail::Usb {
